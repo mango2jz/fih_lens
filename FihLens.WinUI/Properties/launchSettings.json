@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "FihLens.WinUI (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "FihLens.WinUI (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}

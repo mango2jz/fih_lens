@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="FihLens.WinUI/FihLens.WinUI.csproj" Id="c35888f6-096a-4211-9638-69087d512567">
+      <Platform Project="x64" />
+      <Deploy />
+    </Project>
+    <Project Path="src/FihLens.Core/FihLens.Core.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/FihLens.Tests/FihLens.Tests.csproj" />
+  </Folder>
+</Solution>

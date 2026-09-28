@@ -1,0 +1,13 @@
+<Project>
+  <PropertyGroup>
+    <!-- Shared settings inherited by ALL projects in this repo -->
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+
+    <!-- NOTE: TargetFramework is intentionally NOT set here.
+         Each project sets its own TargetFramework in its .csproj
+         so that WinUI and test projects can use different targets. -->
+  </PropertyGroup>
+</Project>
