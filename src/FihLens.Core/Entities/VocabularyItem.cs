@@ -1,4 +1,4 @@
-namespace FihLens.Core.Models;
+namespace FihLens.Core.Entities;
 
 public class VocabularyItem(string word, string phonetic, string partOfSpeech, string meaning, string exampleSentence)
 {
