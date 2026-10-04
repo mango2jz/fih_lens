@@ -4,6 +4,6 @@ public enum Language
 {
     Auto,
     English,
-    Vientnamese,
+    Vietnamese,
     Japanese
 }

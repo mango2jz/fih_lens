@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace FihLens.Core.Enums;
+namespace FihLens.Core.ValueObjects;
 
 public enum CefrLevel
 {
