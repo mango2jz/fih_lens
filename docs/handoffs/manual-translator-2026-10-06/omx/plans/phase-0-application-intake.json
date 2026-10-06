@@ -1,0 +1,8 @@
+{
+  "context_path": ".omx/context/phase-0-application-ralplan-20261006T144150Z.md",
+  "baseline_sha256": {
+    "docs/plans/phase-0-application-implementation-plan.md": "05a95a14bed13770e3cb63b403fc4b38eb21b7438e42872b0a7298f97d211351",
+    "docs/plans/phase-0-core-implementation-plan.md": "a42efcd1adb299eb985f4f1bcd5bf455e192f4500a711702101bac178670e35f"
+  },
+  "created_at": "2026-10-06T14:41:50.631190+00:00"
+}

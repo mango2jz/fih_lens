@@ -1,0 +1,33 @@
+{
+  "context_path": ".omx/context/manual-translator-phase-0-2-20261006T152828Z.md",
+  "baseline_sha256": {
+    "docs/plans/phase-0-application-implementation-plan.md": "05a95a14bed13770e3cb63b403fc4b38eb21b7438e42872b0a7298f97d211351",
+    "docs/plans/phase-1-winui-implementation-plan.md": "a396e9aae2d8519c207d1f3c25e3aa95a1dd2a12fd3e170d76097b916afb6bf6",
+    "docs/plans/phase-2-translation-engine-implementation-plan.md": "ee50399eeaa74a5c371efb30004582eb677da19c5159f7a7de66ee5567a90a4b",
+    ".gitignore": "4e9c51bfcc247fb6804ec330f3aa2ad9c95aa99d5bd04c04427d452c5f173d1c",
+    "FihLens.slnx": "8a74ddfbf6c07780686299db7419bc6f1b42ac272731278e989db52992c78adc",
+    "tests/FihLens.Tests/FihLens.Tests.csproj": "fff6d8fb0affd2127dffe8bbc068a0c8a9b2084ffec1e681b9249017eff9481c",
+    "Directory.Build.props": "af9731cbbd1a6bdbb5e2cb5c0881903dec9ebc40bc356d241a955bc128203ee3",
+    "src/FihLens.Core/obj/Debug/net10.0/FihLens.Core.GlobalUsings.g.cs": "8f86a2cbf00ff3eee0bda2bc0eb5e1fc19c8544d5dc650c53d0132325956b592",
+    "src/FihLens.Core/obj/Debug/net10.0/.NETCoreApp,Version=v10.0.AssemblyAttributes.cs": "f79c1ad9a9fc76110b3655f5bfb5ff4e3168e9addceff05b937c0796f0ec34eb",
+    "src/FihLens.Core/obj/Debug/net10.0/FihLens.Core.AssemblyInfo.cs": "f526bbb2879dd23bee401edbcf9c168b0ab93633403070778831a708384fa417",
+    "src/FihLens.Core/Enums/TranslationMode.cs": "110b669cdd29ac2d273a4a2f82066d443a05a11863488da1266ed312416a3a1d",
+    "src/FihLens.Core/Enums/JlptLevel.cs": "4032b7ff5e66802af8c716ecc5084a62c2307ef5e7caf1cc9dc4c0c97d7c6628",
+    "src/FihLens.Core/Enums/CefrLevel.cs": "2d0063b5ef5f43a2e9bdc0c80f1563b70e6451203b98692228e4d84e555dbf43",
+    "src/FihLens.Core/Enums/Language.cs": "2b2e7f06dcac261023cb8ac7fd471bb2c14191f06a9906c756a6ec3551f130ab",
+    "src/FihLens.Core/Models/GrammarPoint.cs": "7a82ca5a60a0d9220bfed6a8732b66c7f1eb633272d2cd6087bd20fbdf4a23d6",
+    "src/FihLens.Core/Models/TranslationRequest.cs": "c10d0859aa52c80a9451b11de43ca818bdbad108a7d1bedbac22eab2cba56cf2",
+    "src/FihLens.Core/Models/TranslationResult.cs": "9e46f2cb08539dffeb793d15c0fc1e373239532ab8dc91448ade8272df5c7be2",
+    "src/FihLens.Core/Models/VocabularyItem.cs": "4f6382e0e54f960b179095fa781a2c1c61bf0fa11e7df79dee6e63c28409044c",
+    "src/FihLens.Core/Models/TranslationAlternative.cs": "67baf5dd155e56cb5c9cd9aa5ed6e72afa71db9232b6a24f744d897c2da9d1c4",
+    "src/FihLens.Core/ValueObjects/LearningLevel.cs": "15ac56adf1247351b15a62049823c3974f84d40ea204ff3c0539fd3bcf8bd674",
+    "FihLens.WinUI/App.xaml.cs": "2f411d35ae9722045f04b0e7a02be1861388bd79e54c3350b92e9e0f85fbcdda",
+    "FihLens.WinUI/MainWindow.xaml.cs": "81ec0835b5972e89895c3ad0175b65da5d392e5ebd99ecd8846edf68f1eb4b11",
+    "FihLens.WinUI/App.xaml": "8acad832db41ffa892ce452f680667d81bc73645cdde5abbdfd9a5d33e984ab4",
+    "FihLens.WinUI/MainWindow.xaml": "0931f123a24699e9a6cf73acce39985a6bc3e945cac21506ce5af7240914a0e2",
+    "FihLens.WinUI/FihLens.WinUI.csproj": "27d19e76701190d37fec6c01932c156fbf0e87bd73a04663672ac6edd3d5fe98"
+  },
+  "provider_request": "both gemini and deepseek",
+  "execution_scope": "planning only",
+  "created_at": "2026-10-06T15:28:28.140102+00:00"
+}

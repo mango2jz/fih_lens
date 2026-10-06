@@ -1,0 +1,73 @@
+{
+  "task": "Convert Phase 0 Application teaching plan to agent-executable Ralplan; planning only",
+  "review_cycle": 1,
+  "planning_artifacts_sha256": {
+    ".omx/plans/phase-0-application-operation-plan.md": "9aaa31f3f97dd40b627beecf7d13be7d7a15d21809c8096379a5292b1db0c861",
+    ".omx/plans/test-spec-phase-0-application.md": "8b9bbfc14b2b020da1c139634ff6ea7dc96e9c32f317155ec555916a4341e7f7"
+  },
+  "reviews": [
+    {
+      "agent_role": "architect",
+      "agent_id": "/root/application_architect",
+      "verdict": "approve",
+      "review_cycle": 1,
+      "sequence_index": 1,
+      "completed_at": "2026-10-06T14:47:06.910235+00:00",
+      "artifact_path": ".omx/plans/phase-0-application-architect-review-cycle-1.md",
+      "artifact_sha256": "3366351f55fefdf092629d30312cef1d2a1b8cd054b51831d247e8e6f95bde9d",
+      "reviewed_artifacts_sha256": {
+        ".omx/plans/phase-0-application-operation-plan.md": "9aaa31f3f97dd40b627beecf7d13be7d7a15d21809c8096379a5292b1db0c861",
+        ".omx/plans/test-spec-phase-0-application.md": "8b9bbfc14b2b020da1c139634ff6ea7dc96e9c32f317155ec555916a4341e7f7"
+      },
+      "provenance": "native_role_routing",
+      "host_verified": false
+    },
+    {
+      "agent_role": "critic",
+      "agent_id": "/root/application_critic",
+      "verdict": "approve",
+      "review_cycle": 1,
+      "sequence_index": 2,
+      "completed_at": "2026-10-06T14:49:05.226986+00:00",
+      "artifact_path": ".omx/plans/phase-0-application-critic-review-cycle-1.md",
+      "artifact_sha256": "6edca44c47ecce8ef4d702c1b588dcb2e727aefe2f5b9dd2c66ceb7685b36fc8",
+      "reviewed_artifacts_sha256": {
+        ".omx/plans/phase-0-application-operation-plan.md": "9aaa31f3f97dd40b627beecf7d13be7d7a15d21809c8096379a5292b1db0c861",
+        ".omx/plans/test-spec-phase-0-application.md": "8b9bbfc14b2b020da1c139634ff6ea7dc96e9c32f317155ec555916a4341e7f7"
+      },
+      "reviewed_architect_artifact_sha256": "3366351f55fefdf092629d30312cef1d2a1b8cd054b51831d247e8e6f95bde9d",
+      "provenance": "native_role_routing",
+      "host_verified": false
+    }
+  ],
+  "status": "approved",
+  "execution_handoff_authorized": false,
+  "host_verified": false,
+  "completed_at": "2026-10-06T14:49:05.226986+00:00",
+  "ralplan_consensus_gate": {
+    "complete": true,
+    "scope": "local sequential planning lifecycle",
+    "review_cycle": 1
+  },
+  "requested_future_lane": "ultragoal",
+  "ralplan_execution_handoff": {
+    "authorized": false,
+    "reason": "The user requested conversion into an agent-executable plan, not execution during this planning turn.",
+    "source": "user",
+    "review_cycle": 1,
+    "session_id": null
+  },
+  "validation": {
+    "existing_test_suite": {
+      "passed": 45,
+      "failed": 0,
+      "skipped": 0,
+      "command": "dotnet test tests/FihLens.Tests/FihLens.Tests.csproj --no-restore --verbosity minimal",
+      "scope": "baseline only; no new application code exists"
+    },
+    "local_links": "pass",
+    "structure": "RALPLAN-DR, ADR, ordered goals, AC1-AC12 verified",
+    "source_guides_unchanged": true
+  },
+  "post_write_revalidated_at": "2026-10-06T14:49:05.227486+00:00"
+}

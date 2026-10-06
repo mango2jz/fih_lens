@@ -5,6 +5,8 @@
       <Deploy />
     </Project>
     <Project Path="src/FihLens.Core/FihLens.Core.csproj" />
+    <Project Path="src/FihLens.Application/FihLens.Application.csproj" />
+    <Project Path="src/FihLens.Infrastructure/FihLens.Infrastructure.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/FihLens.Tests/FihLens.Tests.csproj" />

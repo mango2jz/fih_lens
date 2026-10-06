@@ -1,0 +1,23 @@
+{
+  "scope": "Frozen paused WIP snapshot; not goal completion",
+  "existing_baseline": {
+    "passed": 45,
+    "failed": 0,
+    "skipped": 0
+  },
+  "snapshot_check": {
+    "command": "dotnet test tests/FihLens.Tests/FihLens.Tests.csproj --no-restore --verbosity minimal",
+    "exit_code": 1,
+    "result": "Core, Application and Infrastructure compiled; test project did not compile",
+    "errors": [
+      "tests/FihLens.Tests/Infrastructure/GeminiTranslationProviderTests.cs:67 malformed string fixture (CS1003/CS1026/CS1010); subsequent CS1022 at line124"
+    ],
+    "tests_executed": false
+  },
+  "pause_boundary_repair": "Restored prior complete ProviderHttp.cs after interrupting a worker mid-replacement; no feature work resumed",
+  "git_diff_check": "passed",
+  "windows_build_runtime": "not run; macOS host and startup unfinished",
+  "gemini_live": "not run; credential not configured",
+  "deepseek_live": "not run; credential not configured",
+  "final_cleaner_and_implementation_reviews": "pending"
+}
