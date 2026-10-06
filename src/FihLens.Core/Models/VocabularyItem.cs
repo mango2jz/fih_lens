@@ -1,10 +1,10 @@
-namespace FihLens.Core.Entities;
+namespace FihLens.Core.Models;
 
-public sealed record VocabularyItem(string word, string phonetic, string partOfSpeech, string meaning, string exampleSentence)
+public sealed record VocabularyItem
 {
-    public string Word { get; set; } = word;
-    public string Phonetic { get; set; } = phonetic;
-    public string PartOfSpeech { get; set; } = partOfSpeech;
-    public string Meaning { get; set; } = meaning;
-    public string ExampleSentence { get; set; } = exampleSentence;
+    public required string Word { get; init; }
+    public string? Phonetic { get; init; }
+    public required string PartOfSpeech { get; init; }
+    public required string Meaning { get; init; }
+    public string? ExampleSentence { get; init; }
 }

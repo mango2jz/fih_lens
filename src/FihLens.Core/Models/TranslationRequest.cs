@@ -52,15 +52,21 @@ public sealed record TranslationRequest
         switch (sourceLanguage)
         {
             case Language.English when userLevel is not CefrLearningLevel:
-                throw new ArgumentException($"English source language only support CEFR learning levels",
+                throw new ArgumentException("English source language only supports CEFR learning levels",
                     nameof(userLevel));
             case Language.Japanese when userLevel is not JlptLearningLevel:
-                throw new ArgumentException($"Japanese source language only support JLPT learning levels",
+                throw new ArgumentException("Japanese source language only supports JLPT learning levels",
                     nameof(userLevel));
             case Language.Vietnamese:
-                throw new ArgumentException($"Vietnamese does not support learning levels", nameof(userLevel));
+                throw new ArgumentException("Vietnamese does not support learning levels", nameof(userLevel));
             case Language.Auto:
-                break;
+                if (userLevel is CefrLearningLevel or JlptLearningLevel)
+                {
+                    return;
+                }
+
+                throw new ArgumentException("Auto source language supports only CEFR or JLPT learning levels",
+                    nameof(userLevel));
         }
     }
 }
