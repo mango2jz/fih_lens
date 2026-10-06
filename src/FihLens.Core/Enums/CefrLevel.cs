@@ -1,12 +1,8 @@
-using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace FihLens.Core.ValueObjects;
+namespace FihLens.Core.Enums;
 
 public enum CefrLevel
 {
-    Unknown = 0,
+    Unknown,
     A1,
     A2,
     B1,

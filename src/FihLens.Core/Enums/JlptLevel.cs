@@ -2,7 +2,7 @@ namespace FihLens.Core.Enums;
 
 public enum JlptLevel
 {
-    None = 0,
+    None,
     N5,
     N4,
     N3,

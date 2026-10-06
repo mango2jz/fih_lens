@@ -2,8 +2,9 @@ namespace FihLens.Core.Enums;
 
 public enum Language
 {
-    Auto,
+    Auto, //valid as a source, invalid as a target
     English,
     Vietnamese,
     Japanese
 }
+
