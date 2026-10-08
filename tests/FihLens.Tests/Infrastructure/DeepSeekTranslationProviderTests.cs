@@ -35,14 +35,15 @@ public sealed class DeepSeekTranslationProviderTests
         Assert.Equal("deepseek-flash", root.GetProperty("model").GetString());
         Assert.Equal("disabled", root.GetProperty("thinking").GetProperty("type").GetString());
         Assert.Equal("system", root.GetProperty("messages")[0].GetProperty("role").GetString());
-        Assert.Equal("Hello world", root.GetProperty("messages")[1].GetProperty("content").GetString());
+        Assert.Equal("  Hello world  ", root.GetProperty("messages")[1].GetProperty("content").GetString());
         Assert.Contains("JSON", root.GetProperty("messages")[0].GetProperty("content").GetString(), StringComparison.OrdinalIgnoreCase);
         Assert.Equal("json_object", root.GetProperty("response_format").GetProperty("type").GetString());
         Assert.Equal(2048, root.GetProperty("max_tokens").GetInt32());
         Assert.False(root.GetProperty("stream").GetBoolean());
         Assert.True(handler.ResponseContent!.WasDisposed);
         await Assert.ThrowsAsync<ObjectDisposedException>(() => handler.Request.Content!.ReadAsStringAsync());
-        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("https://unit.test/")).StatusCode);
+        using var nextResponse = await client.GetAsync("https://unit.test/");
+        Assert.Equal(HttpStatusCode.OK, nextResponse.StatusCode);
     }
 
     [Theory]
@@ -55,12 +56,22 @@ public sealed class DeepSeekTranslationProviderTests
     [InlineData(HttpStatusCode.UnprocessableEntity, TranslationProviderFailureKind.RequestRejected)]
     [InlineData(HttpStatusCode.GatewayTimeout, TranslationProviderFailureKind.Timeout)]
     [InlineData(HttpStatusCode.InternalServerError, TranslationProviderFailureKind.Unavailable)]
+    [InlineData(HttpStatusCode.ServiceUnavailable, TranslationProviderFailureKind.Unavailable)]
+    [InlineData(HttpStatusCode.RequestTimeout, TranslationProviderFailureKind.Timeout)]
+    [InlineData((HttpStatusCode)418, TranslationProviderFailureKind.RequestRejected)]
     public async Task TranslateAsync_MapsHttpStatus(HttpStatusCode status, TranslationProviderFailureKind expected)
     {
-        using var client = new HttpClient(ProviderTestHandler.Respond(status, "sensitive provider body"));
+        var handler = ProviderTestHandler.Respond(status, "sensitive provider body");
+        using var client = new HttpClient(handler);
         var exception = await Assert.ThrowsAsync<TranslationProviderException>(() => Create(client).TranslateAsync(Request()));
         Assert.Equal(expected, exception.FailureKind);
         Assert.DoesNotContain("sensitive", exception.Message);
+        Assert.DoesNotContain("secret", exception.Message);
+        Assert.Equal(1, handler.Calls);
+        Assert.True(handler.ResponseContent!.WasDisposed);
+        await Assert.ThrowsAsync<ObjectDisposedException>(() => handler.Request!.Content!.ReadAsStringAsync());
+        using var nextResponse = await client.GetAsync("https://unit.test/");
+        Assert.Equal(status, nextResponse.StatusCode);
     }
 
     [Theory]
@@ -105,8 +116,102 @@ public sealed class DeepSeekTranslationProviderTests
         using var client = new HttpClient(handler);
         using var cancellation = new CancellationTokenSource();
         var operation = Create(client).TranslateAsync(Request(), cancellation.Token);
-        await started.Task;
+        await started.Task.WaitAsync(TimeSpan.FromSeconds(5));
         cancellation.Cancel();
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => operation);
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => operation.WaitAsync(TimeSpan.FromSeconds(5)));
+    }
+    [Fact]
+    public async Task TranslateAsync_DistinguishesTimeoutFromUnexpectedCancellationAndTransportFailure()
+    {
+        var plainCancellation = new OperationCanceledException("unrelated cancellation");
+        using (var client = new HttpClient(new ProviderTestHandler((_, _) => Task.FromException<HttpResponseMessage>(plainCancellation))))
+        {
+            var exception = await Assert.ThrowsAnyAsync<OperationCanceledException>(() => Create(client).TranslateAsync(Request()));
+            Assert.Same(plainCancellation, exception);
+        }
+
+        var failures = new (Exception Cause, TranslationProviderFailureKind Kind)[]
+        {
+            (new OperationCanceledException("timeout", new TimeoutException()), TranslationProviderFailureKind.Timeout),
+            (new TimeoutException(), TranslationProviderFailureKind.Timeout),
+            (new HttpRequestException(HttpRequestError.ConnectionError, "secret transport diagnostic"), TranslationProviderFailureKind.Unavailable),
+            (new HttpRequestException(HttpRequestError.ConfigurationLimitExceeded, "no message matching"), TranslationProviderFailureKind.InvalidResponse)
+        };
+        foreach (var (cause, kind) in failures)
+        {
+            var handler = new ProviderTestHandler((_, _) => Task.FromException<HttpResponseMessage>(cause));
+            using var client = new HttpClient(handler);
+            var exception = await Assert.ThrowsAsync<TranslationProviderException>(() => Create(client).TranslateAsync(Request()));
+            Assert.Equal(kind, exception.FailureKind);
+            Assert.Same(cause, exception.InnerException);
+            Assert.DoesNotContain("secret", exception.Message);
+            Assert.Equal(1, handler.Calls);
+            await Assert.ThrowsAsync<ObjectDisposedException>(() => handler.Request!.Content!.ReadAsStringAsync());
+        }
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task TranslateAsync_RejectsKnownAndUnknownLengthBodiesAboveOneMiB(bool knownLength)
+    {
+        var content = new BoundedTestContent(knownLength);
+        var handler = new ProviderTestHandler((_, _) => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = content }));
+        using var client = new HttpClient(handler) { MaxResponseContentBufferSize = 1_048_576 };
+        var exception = await Assert.ThrowsAsync<TranslationProviderException>(() => Create(client).TranslateAsync(Request()));
+        Assert.Equal(TranslationProviderFailureKind.InvalidResponse, exception.FailureKind);
+        Assert.True(content.WasDisposed);
+        Assert.Equal(1, handler.Calls);
+        await Assert.ThrowsAsync<ObjectDisposedException>(() => handler.Request!.Content!.ReadAsStringAsync());
+    }
+    [Theory]
+    [InlineData("null")]
+    [InlineData("{\"choices\":[]}")]
+    [InlineData("{\"choices\":[{},{}]}")]
+    [InlineData("{\"choices\":[{}]}")]
+    [InlineData("{\"choices\":[{\"finish_reason\":\"stop\"}]}")]
+    [InlineData("{\"choices\":[{\"finish_reason\":\"stop\",\"message\":{\"content\":null}}]}")]
+    [InlineData("{\"choices\":[{\"finish_reason\":\"stop\",\"message\":{\"content\":\" \"}}]}")]
+    [InlineData("{\"choices\":[{\"finish_reason\":\"stop\",\"message\":{\"content\":4}}]}")]
+    [InlineData("{\"choices\":[{\"finish_reason\":\"stop\",\"message\":{\"content\":\"{}\",\"tool_calls\":[]}}]}")]
+    [InlineData("{\"choices\":[{\"finish_reason\":\"stop\",\"message\":{\"content\":\"{}\",\"function_call\":{}}}]}")]
+    public async Task TranslateAsync_RejectsIncompleteOrUnsupportedEnvelope(string envelope)
+    {
+        using var client = new HttpClient(ProviderTestHandler.Respond(HttpStatusCode.OK, envelope));
+        var exception = await Assert.ThrowsAsync<TranslationProviderException>(() => Create(client).TranslateAsync(Request()));
+        Assert.Equal(TranslationProviderFailureKind.InvalidResponse, exception.FailureKind);
+    }
+    [Fact]
+    public async Task TranslateAsync_CallerCancellationWinsOverTimeoutShapedFailureAndPreCanceledCallsDoNotSend()
+    {
+        using var cancellation = new CancellationTokenSource();
+        var failure = new OperationCanceledException("timeout shaped", new TimeoutException(), cancellation.Token);
+        var handler = new ProviderTestHandler((_, _) =>
+        {
+            cancellation.Cancel();
+            return Task.FromException<HttpResponseMessage>(failure);
+        });
+        using var client = new HttpClient(handler);
+        var exception = await Assert.ThrowsAnyAsync<OperationCanceledException>(() => Create(client).TranslateAsync(Request(), cancellation.Token));
+        Assert.Same(failure, exception);
+        Assert.Equal(1, handler.Calls);
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => Create(client).TranslateAsync(Request(), cancellation.Token));
+        Assert.Equal(1, handler.Calls);
+    }
+    [Fact]
+    public async Task TranslateAsync_RejectsEveryUnsupportedDimensionBeforeSending()
+    {
+        var handler = ProviderTestHandler.Respond(HttpStatusCode.OK, "{}");
+        using var client = new HttpClient(handler);
+        var requests = new[]
+        {
+            new TranslationRequest("Hello", Language.Auto, Language.Vietnamese),
+            new TranslationRequest("Hello", Language.English, Language.Japanese),
+            new TranslationRequest("Hello", Language.English, Language.Vietnamese, mode: TranslationMode.Explain),
+            new TranslationRequest("Hello", Language.English, Language.Vietnamese, new FihLens.Core.ValueObjects.CefrLearningLevel(CefrLevel.A1))
+        };
+        foreach (var request in requests)
+            await Assert.ThrowsAsync<NotSupportedException>(() => Create(client).TranslateAsync(request));
+        Assert.Equal(0, handler.Calls);
     }
 }

@@ -133,7 +133,7 @@ public sealed class GeminiTranslationProvider : ITranslationProvider
         }
 
         var reason = finishReason.GetString();
-        if (reason is "SAFETY" or "BLOCKLIST" or "PROHIBITED_CONTENT" or "RECITATION")
+        if (reason is "SAFETY" or "BLOCKLIST" or "PROHIBITED_CONTENT" or "RECITATION" or "SPII")
         {
             throw new TranslationProviderException(TranslationProviderFailureKind.Refused);
         }
@@ -164,7 +164,8 @@ public sealed class GeminiTranslationProvider : ITranslationProvider
                 throw new JsonException("Gemini thought marker is invalid.");
             }
             if (part.TryGetProperty("functionCall", out _) || part.TryGetProperty("functionResponse", out _) ||
-                part.TryGetProperty("inlineData", out _) || part.TryGetProperty("fileData", out _))
+                part.TryGetProperty("inlineData", out _) || part.TryGetProperty("fileData", out _) ||
+                part.TryGetProperty("executableCode", out _) || part.TryGetProperty("codeExecutionResult", out _))
             {
                 throw new JsonException("Gemini returned unsupported nontext content.");
             }

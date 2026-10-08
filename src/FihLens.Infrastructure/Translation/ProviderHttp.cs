@@ -26,7 +26,7 @@ internal static class ProviderHttp
         {
             throw;
         }
-        catch (OperationCanceledException exception)
+        catch (OperationCanceledException exception) when (exception.InnerException is TimeoutException)
         {
             throw new TranslationProviderException(TranslationProviderFailureKind.Timeout, exception);
         }

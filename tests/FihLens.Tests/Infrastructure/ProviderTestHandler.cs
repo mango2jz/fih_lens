@@ -33,3 +33,22 @@ internal sealed class TrackingContent(string content) : StringContent(content)
         base.Dispose(disposing);
     }
 }
+
+internal sealed class BoundedTestContent(bool knownLength) : HttpContent
+{
+    public bool WasDisposed { get; private set; }
+    protected override bool TryComputeLength(out long length)
+    {
+        length = 1_048_577;
+        return knownLength;
+    }
+
+    protected override Task SerializeToStreamAsync(Stream stream, TransportContext? context) =>
+        stream.WriteAsync(new byte[1_048_577]).AsTask();
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing) WasDisposed = true;
+        base.Dispose(disposing);
+    }
+}

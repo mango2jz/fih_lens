@@ -14,6 +14,7 @@ public sealed class PromptBuilderTests
         var instructions = new PromptBuilder().Build(new TranslationRequest(input, Language.English, Language.Vietnamese));
 
         Assert.Equal(input, instructions.UserText);
+        Assert.DoesNotContain(input, instructions.SystemText);
         Assert.Contains("natural Vietnamese", instructions.SystemText);
         Assert.Contains("\"naturalTranslation\"", instructions.SystemText);
     }
@@ -22,6 +23,9 @@ public sealed class PromptBuilderTests
     public void RejectsOtherLanguageModeAndLearningLevel()
     {
         var builder = new PromptBuilder();
+        Assert.Throws<ArgumentNullException>(() => builder.Build(null!));
+        Assert.Throws<NotSupportedException>(() => builder.Build(new TranslationRequest("Hello", Language.Auto, Language.Vietnamese)));
+        Assert.Throws<NotSupportedException>(() => builder.Build(new TranslationRequest("Hello", Language.English, Language.Japanese)));
         Assert.Throws<NotSupportedException>(() => builder.Build(new TranslationRequest("こんにちは", Language.Japanese, Language.Vietnamese)));
         Assert.Throws<NotSupportedException>(() => builder.Build(new TranslationRequest("Hello", Language.English, Language.Vietnamese, mode: TranslationMode.Explain)));
         Assert.Throws<NotSupportedException>(() => builder.Build(new TranslationRequest("Hello", Language.English, Language.Vietnamese, new CefrLearningLevel(CefrLevel.A1))));
