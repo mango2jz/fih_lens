@@ -1,0 +1,5 @@
+{
+  "common": ["time", "people", "year", "day", "way", "thing", "man", "world", "life", "hand", "child", "eye", "woman", "place", "work", "week", "case", "point", "government", "company", "number", "group", "problem", "fact", "home", "water", "room", "mother", "area", "money", "story", "month", "right", "study", "book", "word", "business", "issue", "side", "kind", "head", "house", "service", "friend", "father", "power", "hour", "game", "line", "end", "member", "law", "car", "city", "community", "name", "president", "team", "minute", "idea", "kid", "body", "information", "back", "parent", "face", "level", "office", "door", "health"],
+  "polysemous": ["bank", "run", "set", "light", "spring", "match", "fine", "date", "charge", "current", "fair", "watch", "plant", "bear", "seal"],
+  "phrases": ["run out of", "give up", "look after", "take off", "break down", "put off", "come across", "look up", "carry on", "turn down", "in spite of", "as soon as", "by the way", "at least", "a piece of cake"]
+}
