@@ -1,5 +1,7 @@
 using FihLens.WinUI.ViewModels;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Input;
+using Windows.System;
 
 namespace FihLens.WinUI;
 
@@ -13,4 +15,14 @@ public sealed partial class MainWindow : Window
         InitializeComponent();
         Closed += (_, _) => ViewModel.Close();
     }
+
+    private void InputBox_KeyDown(object sender, KeyRoutedEventArgs e)
+    {
+        if (e.Key != VirtualKey.Enter) return;
+        e.Handled = true;
+        if (ViewModel.LookupDictionaryCommand.CanExecute(null))
+            ViewModel.LookupDictionaryCommand.Execute(null);
+    }
+
+    private void AskAi_Click(object sender, RoutedEventArgs e) => AiDetails.IsExpanded = true;
 }

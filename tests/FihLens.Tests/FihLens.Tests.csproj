@@ -27,6 +27,7 @@
 
   <ItemGroup>
     <Compile Include="..\..\FihLens.WinUI\ViewModels\MainWindowViewModel.cs" Link="WinUI\MainWindowViewModel.cs" />
+    <Compile Include="..\..\FihLens.WinUI\TranslationStartup.cs" Link="WinUI\TranslationStartup.cs" />
   </ItemGroup>
 
 </Project>

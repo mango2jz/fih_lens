@@ -2,70 +2,92 @@
     x:Class="FihLens.WinUI.MainWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    Title="FIH Lens Translator">
+    Title="FIH Lens">
 
     <Window.SystemBackdrop>
         <MicaBackdrop />
     </Window.SystemBackdrop>
 
-    <ScrollViewer VerticalScrollBarVisibility="Auto">
-        <Grid Padding="24" MaxWidth="1000" HorizontalAlignment="Center" RowSpacing="16">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
-            </Grid.RowDefinitions>
+    <Grid Padding="20" MaxWidth="900" HorizontalAlignment="Stretch" RowSpacing="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
 
-            <StackPanel Spacing="4">
-                <TextBlock Text="English to Vietnamese" Style="{ThemeResource TitleTextBlockStyle}" />
-                <TextBlock Text="Translate a sentence and review its learning notes." Opacity="0.75" />
-                <TextBlock Text="{x:Bind ViewModel.ModeDescription, Mode=OneWay}" Opacity="0.75" TextWrapping="Wrap" />
-            </StackPanel>
+        <TextBlock Text="English to Vietnamese" Style="{ThemeResource TitleTextBlockStyle}" />
 
-            <StackPanel Grid.Row="1" Spacing="8">
-                <TextBlock Text="English text" Style="{ThemeResource SubtitleTextBlockStyle}" />
-                <TextBox x:Name="InputBox" Text="{x:Bind ViewModel.InputText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                         IsEnabled="{x:Bind ViewModel.IsEditingEnabled, Mode=OneWay}"
-                         AcceptsReturn="True" TextWrapping="Wrap" MinHeight="110"
-                         PlaceholderText="Enter English text" AutomationProperties.Name="English text" />
-            </StackPanel>
+        <Grid Grid.Row="1" ColumnSpacing="8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBox x:Name="InputBox" Text="{x:Bind ViewModel.InputText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                     IsEnabled="{x:Bind ViewModel.IsEditingEnabled, Mode=OneWay}"
+                     Height="40" VerticalContentAlignment="Center" KeyDown="InputBox_KeyDown"
+                     PlaceholderText="Search a word or phrase" AutomationProperties.Name="English dictionary search" />
+            <Button Grid.Column="1" Content="Search" Height="40" Command="{x:Bind ViewModel.LookupDictionaryCommand, Mode=OneWay}" AccessKey="L"
+                    AutomationProperties.Name="Search local dictionary" />
+        </Grid>
 
-            <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
-                <Button Content="Translate" Command="{x:Bind ViewModel.TranslateCommand, Mode=OneWay}" />
-                <Button Content="Cancel" Command="{x:Bind ViewModel.TranslateCancelCommand, Mode=OneWay}" />
+        <StackPanel Grid.Row="2" Spacing="6">
+            <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                <Button Content="Ask AI" Command="{x:Bind ViewModel.AskAiCommand, Mode=OneWay}" AccessKey="A" Click="AskAi_Click" />
+                <Button Content="Cancel" AccessKey="C" Command="{x:Bind ViewModel.CancelCommand, Mode=OneWay}" />
                 <ProgressRing IsActive="{x:Bind ViewModel.IsBusy, Mode=OneWay}"
                               Width="28" Height="28"
-                              AutomationProperties.Name="Translation in progress" />
-                <TextBlock Text="{x:Bind ViewModel.StatusText, Mode=OneWay}" VerticalAlignment="Center" />
+                              AutomationProperties.Name="Operation in progress" />
             </StackPanel>
+            <TextBlock Text="Dictionary lookup stays on this device. Only Ask AI sends text online." TextWrapping="Wrap" Opacity="0.75" />
+            <TextBlock Text="{x:Bind ViewModel.AiSendNotice, Mode=OneWay}" Opacity="0.75" TextWrapping="Wrap" />
+        </StackPanel>
 
-            <TextBlock Grid.Row="3" Text="{x:Bind ViewModel.ErrorMessage, Mode=OneWay}"
-                       Foreground="{ThemeResource SystemFillColorCriticalBrush}" TextWrapping="Wrap"
-                       AutomationProperties.LiveSetting="Assertive" />
-
-            <StackPanel Grid.Row="4" Spacing="12">
-                <TextBlock Text="Original text" Style="{ThemeResource SubtitleTextBlockStyle}" />
-                <TextBox Text="{x:Bind ViewModel.Result.OriginalText, Mode=OneWay}" IsReadOnly="True"
-                         TextWrapping="Wrap" MinHeight="60" IsTabStop="True" />
-                <TextBlock Text="Vietnamese translation" Style="{ThemeResource SubtitleTextBlockStyle}" />
-                <TextBox Text="{x:Bind ViewModel.Result.NaturalTranslation, Mode=OneWay}" IsReadOnly="True"
-                         TextWrapping="Wrap" MinHeight="70" IsTabStop="True" />
-                <TextBlock Text="Explanation" Style="{ThemeResource SubtitleTextBlockStyle}" />
-                <TextBox Text="{x:Bind ViewModel.Result.Explanation, Mode=OneWay}" IsReadOnly="True"
-                         TextWrapping="Wrap" MinHeight="50" IsTabStop="True" />
-                <TextBlock Text="Vocabulary" Style="{ThemeResource SubtitleTextBlockStyle}" />
-                <ItemsControl ItemsSource="{x:Bind ViewModel.Result.Vocabulary, Mode=OneWay}">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <StackPanel Margin="0,4" Spacing="2">
-                                <TextBlock Text="{Binding Word}" FontWeight="SemiBold" TextWrapping="Wrap" />
-                                <TextBlock Text="{Binding PartOfSpeech}" Opacity="0.75" />
-                                <TextBlock Text="{Binding Meaning}" TextWrapping="Wrap" />
-                                <TextBlock Text="{Binding ExampleSentence}" TextWrapping="Wrap" />
-                            </StackPanel>
+        <ScrollViewer Grid.Row="3" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <StackPanel Spacing="12">
+                <TextBlock Text="{x:Bind ViewModel.DictionaryInputSnapshot, Mode=OneWay}" Style="{ThemeResource SubtitleTextBlockStyle}"
+                           IsTextSelectionEnabled="True" TextWrapping="Wrap" AutomationProperties.Name="Dictionary input snapshot" />
+                <TextBlock Text="{x:Bind ViewModel.DictionarySourceLabel, Mode=OneWay}" IsTextSelectionEnabled="True" TextWrapping="Wrap" />
+                <TextBlock Text="{x:Bind ViewModel.DictionaryStatusText, Mode=OneWay}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
+                <TextBlock Text="{x:Bind ViewModel.DictionaryErrorMessage, Mode=OneWay}" TextWrapping="Wrap" Foreground="{ThemeResource SystemFillColorCriticalBrush}" AutomationProperties.LiveSetting="Assertive" />
+                <TextBox Text="{x:Bind ViewModel.DictionaryText, Mode=OneWay}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap"
+                         BorderThickness="0" Background="Transparent" AutomationProperties.Name="Dictionary definitions and article sources" />
+                <Expander Header="Dictionary source and license" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                    <TextBox Text="{x:Bind ViewModel.DictionarySourceDetails, Mode=OneWay}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" MaxHeight="260" AutomationProperties.Name="Dictionary attribution, license and full notices" />
+                </Expander>
+                <Expander x:Name="AiDetails" Header="AI translation and learning notes" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="{x:Bind ViewModel.AiSourceLabel, Mode=OneWay}" IsTextSelectionEnabled="True" TextWrapping="Wrap" />
+                        <TextBlock Text="{x:Bind ViewModel.AiStatusText, Mode=OneWay}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
+                        <TextBlock Text="{x:Bind ViewModel.ErrorMessage, Mode=OneWay}" TextWrapping="Wrap" Foreground="{ThemeResource SystemFillColorCriticalBrush}" AutomationProperties.LiveSetting="Assertive" />
+                        <TextBlock Text="AI input" Style="{ThemeResource SubtitleTextBlockStyle}" />
+                        <TextBox Text="{x:Bind ViewModel.AiInputSnapshot, Mode=OneWay}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" AutomationProperties.Name="AI input snapshot" />
+                        <TextBlock Text="Original text" Style="{ThemeResource SubtitleTextBlockStyle}" />
+                        <TextBox Text="{x:Bind ViewModel.Result.OriginalText, Mode=OneWay}" IsReadOnly="True" AcceptsReturn="True"
+                                 TextWrapping="Wrap" MinHeight="60" IsTabStop="True" AutomationProperties.Name="Original text" />
+                        <TextBlock Text="Vietnamese translation" Style="{ThemeResource SubtitleTextBlockStyle}" />
+                        <TextBox Text="{x:Bind ViewModel.Result.NaturalTranslation, Mode=OneWay}" IsReadOnly="True" AcceptsReturn="True"
+                                 TextWrapping="Wrap" MinHeight="70" IsTabStop="True" AutomationProperties.Name="Vietnamese translation" />
+                        <TextBlock Text="Explanation" Style="{ThemeResource SubtitleTextBlockStyle}" />
+                        <TextBox Text="{x:Bind ViewModel.Result.Explanation, Mode=OneWay}" IsReadOnly="True" AcceptsReturn="True"
+                                 TextWrapping="Wrap" MinHeight="50" IsTabStop="True" AutomationProperties.Name="Explanation" />
+                        <TextBlock Text="Context" Style="{ThemeResource SubtitleTextBlockStyle}" />
+                        <TextBox Text="{x:Bind ViewModel.Result.Context, Mode=OneWay}" IsReadOnly="True" AcceptsReturn="True"
+                                 TextWrapping="Wrap" IsTabStop="True" AutomationProperties.Name="Context" />
+                        <TextBlock Text="Tone" Style="{ThemeResource SubtitleTextBlockStyle}" />
+                        <TextBox Text="{x:Bind ViewModel.Result.Tone, Mode=OneWay}" IsReadOnly="True" AcceptsReturn="True"
+                                 TextWrapping="Wrap" IsTabStop="True" AutomationProperties.Name="Tone" />
+                        <TextBlock Text="Vocabulary" Style="{ThemeResource SubtitleTextBlockStyle}" />
+                        <ItemsControl ItemsSource="{x:Bind ViewModel.Result.Vocabulary, Mode=OneWay}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Margin="0,4" Spacing="2">
+                                        <TextBlock IsTextSelectionEnabled="True" TextWrapping="Wrap" Text="{Binding Word}" FontWeight="SemiBold" />
+                                        <TextBlock IsTextSelectionEnabled="True" TextWrapping="Wrap" Text="{Binding Phonetic}" AutomationProperties.Name="Pronunciation" />
+                                        <TextBlock IsTextSelectionEnabled="True" TextWrapping="Wrap" Text="{Binding PartOfSpeech}" Opacity="0.75" />
+                                        <TextBlock IsTextSelectionEnabled="True" TextWrapping="Wrap" Text="{Binding Meaning}" />
+                                        <TextBlock IsTextSelectionEnabled="True" TextWrapping="Wrap" Text="{Binding ExampleSentence}" />
+                                      </StackPanel>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
@@ -74,10 +96,10 @@
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
                             <StackPanel Margin="0,4" Spacing="2">
-                                <TextBlock Text="{Binding Pattern}" FontWeight="SemiBold" TextWrapping="Wrap" />
-                                <TextBlock Text="{Binding Explanation}" TextWrapping="Wrap" />
-                                <TextBlock Text="{Binding ExampleSentence}" TextWrapping="Wrap" />
-                            </StackPanel>
+                                <TextBlock IsTextSelectionEnabled="True" TextWrapping="Wrap" Text="{Binding Pattern}" FontWeight="SemiBold" />
+                                <TextBlock IsTextSelectionEnabled="True" TextWrapping="Wrap" Text="{Binding Explanation}" />
+                                <TextBlock IsTextSelectionEnabled="True" TextWrapping="Wrap" Text="{Binding ExampleSentence}" />
+                              </StackPanel>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
@@ -86,13 +108,16 @@
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
                             <StackPanel Margin="0,4" Spacing="2">
-                                <TextBlock Text="{Binding Text}" TextWrapping="Wrap" />
-                                <TextBlock Text="{Binding Explanation}" TextWrapping="Wrap" />
-                            </StackPanel>
+                                <TextBlock IsTextSelectionEnabled="True" TextWrapping="Wrap" Text="{Binding Text}" />
+                                <TextBlock IsTextSelectionEnabled="True" TextWrapping="Wrap" Text="{Binding Explanation}" />
+                              </StackPanel>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
+                    </StackPanel>
+                </Expander>
             </StackPanel>
-        </Grid>
-    </ScrollViewer>
+        </ScrollViewer>
+    </Grid>
+
 </Window>

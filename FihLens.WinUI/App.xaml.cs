@@ -1,48 +1,68 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Runtime.InteropServices.WindowsRuntime;
+﻿using System.Net.Http;
+using FihLens.Application.Dictionary;
+using FihLens.Application.Translation;
+using FihLens.Infrastructure.Dictionary;
+using FihLens.WinUI.ViewModels;
 using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Controls.Primitives;
-using Microsoft.UI.Xaml.Data;
-using Microsoft.UI.Xaml.Input;
-using Microsoft.UI.Xaml.Media;
-using Microsoft.UI.Xaml.Navigation;
-using Microsoft.UI.Xaml.Shapes;
-using Windows.ApplicationModel;
-using Windows.ApplicationModel.Activation;
-using Windows.Foundation;
-using Windows.Foundation.Collections;
-
-// To learn more about WinUI, the WinUI project structure,
-// and more about our project templates, see: http://aka.ms/winui-project-info.
 
 namespace FihLens.WinUI;
-/// <summary>
-/// Provides application-specific behavior to supplement the default Application class.
-/// </summary>
-public partial class App : Application
+
+public partial class App : Microsoft.UI.Xaml.Application
 {
     private Window? _window;
+    private HttpClient? _translationClient;
+    private readonly object _loadLock = new();
+    private CancellationTokenSource? _dictionaryLoadCancellation;
+    private Task? _dictionaryInitialization;
 
-    /// <summary>
-    /// Initializes the singleton application object.  This is the first line of authored code
-    /// executed, and as such is the logical equivalent of main() or WinMain().
-    /// </summary>
-    public App()
+    public App() => InitializeComponent();
+
+    protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
-        InitializeComponent();
+        var startup = TranslationStartup.Create(Environment.GetEnvironmentVariable);
+        // The final window ends the process; process teardown owns this HTTP client.
+        _translationClient = startup.Client;
+        var viewModel = new MainWindowViewModel(startup.Provider is null ? null : new TranslationService(startup.Provider),
+            startup.Label, startup.UnavailableReason);
+        _window = new MainWindow(viewModel);
+        var cancellation = new CancellationTokenSource();
+        _dictionaryLoadCancellation = cancellation;
+        _window.Closed += (_, _) =>
+        {
+            lock (_loadLock) _dictionaryLoadCancellation?.Cancel();
+        };
+        _window.Activate();
+        _dictionaryInitialization = InitializeDictionaryAsync(viewModel, _window.DispatcherQueue, cancellation);
     }
 
-    /// <summary>
-    /// Invoked when the application is launched.
-    /// </summary>
-    /// <param name="args">Details about the launch request and process.</param>
-    protected override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
+    private async Task InitializeDictionaryAsync(MainWindowViewModel viewModel,
+        Microsoft.UI.Dispatching.DispatcherQueue dispatcher, CancellationTokenSource cancellation)
     {
-        _window = new MainWindow();
-        _window.Activate();
+        try
+        {
+            var root = Environment.GetEnvironmentVariable("FIHLENS_LOCAL_ASSET_ROOT") ??
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "FihLens", "local-assets");
+            var dictionary = await JsonlDictionaryLookup.LoadAsync(root, cancellation.Token);
+            dispatcher.TryEnqueue(() =>
+            {
+                if (!cancellation.IsCancellationRequested)
+                    viewModel.SetDictionaryAvailability(new DictionaryLookupService(dictionary), dictionary.Source);
+            });
+        }
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { }
+        catch (Exception exception)
+        {
+            var message = exception is DictionaryDataException failure ? failure.Message : "Local dictionary could not load.";
+            dispatcher.TryEnqueue(() => viewModel.SetDictionaryAvailability(null, null,
+                $"{message} Install the approved dictionary data, then restart FIH Lens."));
+        }
+        finally
+        {
+            lock (_loadLock)
+            {
+                _dictionaryLoadCancellation = null;
+                cancellation.Dispose();
+            }
+        }
     }
 }
