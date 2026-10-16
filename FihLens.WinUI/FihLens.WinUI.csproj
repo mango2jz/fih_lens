@@ -45,6 +45,7 @@
     <ProjectReference Include="..\src\FihLens.Core\FihLens.Core.csproj" />
     <ProjectReference Include="..\src\FihLens.Application\FihLens.Application.csproj" />
     <ProjectReference Include="..\src\FihLens.Infrastructure\FihLens.Infrastructure.csproj" />
+    <ProjectReference Include="..\src\FihLens.Windows\FihLens.Windows.csproj" />
   </ItemGroup>
 
   <!--
