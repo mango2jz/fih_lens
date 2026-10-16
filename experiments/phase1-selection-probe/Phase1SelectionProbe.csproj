@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.19041.0</TargetPlatformMinVersion>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <UseWinUI>true</UseWinUI>
+    <WinUISDKReferences>false</WinUISDKReferences>
+    <EnableMsixTooling>true</EnableMsixTooling>
+    <Platforms>x64</Platforms>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Remove="checks/**/*.cs" />
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.5.1" />
+    <Content Include="../../FihLens.WinUI/Assets/StoreLogo.png" Link="Assets/StoreLogo.png" />
+    <Content Include="../../FihLens.WinUI/Assets/Square150x150Logo.scale-200.png" Link="Assets/Square150x150Logo.scale-200.png" />
+    <Content Include="../../FihLens.WinUI/Assets/Square44x44Logo.scale-200.png" Link="Assets/Square44x44Logo.scale-200.png" />
+  </ItemGroup>
+</Project>
+

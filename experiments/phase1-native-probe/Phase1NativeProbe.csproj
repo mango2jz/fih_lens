@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <UseWinUI>true</UseWinUI>
+    <WinUISDKReferences>false</WinUISDKReferences>
+    <WindowsPackageType>None</WindowsPackageType>
+    <Platforms>x64</Platforms>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.5.1" />
+    <Page Include="../../FihLens.WinUI/Resources/Phase1Tokens.xaml" Link="Resources/Phase1Tokens.xaml" />
+    <Page Include="../../FihLens.WinUI/Resources/Phase1Styles.xaml" Link="Resources/Phase1Styles.xaml" />
+    <Content Include="../../FihLens.WinUI/Assets/Phase1/*" Link="Assets/Phase1/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets/Scale*Reference/*.png" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>
