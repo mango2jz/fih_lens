@@ -85,3 +85,14 @@ Give each child a concrete outcome, file ownership, constraints, and required ev
 Teach through the actual change. Briefly explain consequential architecture, Windows mechanisms, asynchronous behavior, resource lifetime, and testing choices. Link the relevant existing document in `docs/learning/` or `docs/ARCHITECTURE.md` when helpful. Expand explanations when requested; do not require quizzes or a lesson before routine implementation.
 
 Keep progress updates short and evidence-based. Final reports state the result, changed files, checks and outcomes, and remaining limitations. For meaningful milestones, add a short note on the engineering concepts practiced. For reviews, prioritize actionable findings with file locations, consequences, and suggested corrections.
+
+
+## Agent skills
+
+### Issue tracker
+
+Issues live in GitHub Issues for `mango2jz/fih_lens`, using the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Domain docs
+
+Single-context: the glossary lives at `GLOSSARY.md` and ADRs live in `docs/adr/`. See `docs/agents/domain.md`.
