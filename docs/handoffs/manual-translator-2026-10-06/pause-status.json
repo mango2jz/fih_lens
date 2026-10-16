@@ -1,0 +1,21 @@
+{
+  "user_request": "Pause on macOS, save OMX status, branch from current commit and commit WIP for Windows continuation",
+  "native_goal_status": "paused",
+  "omx_workflow_status": "paused",
+  "active_story": "G001-portable-foundation",
+  "completed_stories": 0,
+  "pending_stories": 6,
+  "origin_branch": "wip/manual-translator-phase-0-2",
+  "origin_base_commit": "fbd87f00cca387b3edfcec3360a2f654bd7d3c4a",
+  "windows_verified": false,
+  "gemini_credentials_configured": false,
+  "deepseek_credentials_configured": false,
+  "runtime_state_diagnostic": {
+    "active": false,
+    "current_phase": "paused",
+    "paused_by": "user",
+    "pause_reason": "Move implementation and verification to Windows",
+    "resume_required": true
+  },
+  "note": "Snapshot is portable planning/execution evidence only. Historical native thread IDs and local review files are not new-session ownership or security authority. Do not restore hook-owned state or locks across devices."
+}

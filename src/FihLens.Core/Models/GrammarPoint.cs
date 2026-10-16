@@ -1,8 +1,8 @@
-namespace FihLens.Core.Entities;
+namespace FihLens.Core.Models;
 
-public class GrammarPoint(string pattern)
+public sealed record GrammarPoint
 {
-    public string Pattern { get; set; } = pattern;
-
-
+    public required string Pattern { get; init; }
+    public string? Explanation { get; init; }
+    public string? ExampleSentence { get; init; }
 }

@@ -1,0 +1,113 @@
+<ResourceDictionary
+  xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <!-- Keyed styles leave the existing launcher and native control templates intact. -->
+  <Style x:Key="Phase1BodyTextStyle" TargetType="TextBlock">
+    <Setter Property="FontFamily" Value="{StaticResource Phase1FontFamily}" />
+    <Setter Property="FontSize" Value="{StaticResource Phase1BodyFontSize}" />
+    <Setter Property="LineHeight" Value="{StaticResource Phase1BodyLineHeight}" />
+    <Setter Property="LineStackingStrategy" Value="BlockLineHeight" />
+    <Setter Property="Foreground" Value="{ThemeResource Phase1TextBrush}" />
+    <Setter Property="TextWrapping" Value="Wrap" />
+    <Setter Property="IsTextSelectionEnabled" Value="True" />
+  </Style>
+  <Style x:Key="Phase1TranslationTextStyle" TargetType="TextBlock" BasedOn="{StaticResource Phase1BodyTextStyle}">
+    <Setter Property="FontSize" Value="{StaticResource Phase1TranslationFontSize}" />
+    <Setter Property="LineHeight" Value="{StaticResource Phase1TranslationLineHeight}" />
+    <Setter Property="Foreground" Value="{ThemeResource Phase1TextBrush}" />
+    <Setter Property="FontWeight" Value="Normal" />
+  </Style>
+  <Style x:Key="Phase1CaptionTextStyle" TargetType="TextBlock" BasedOn="{StaticResource Phase1BodyTextStyle}">
+    <Setter Property="FontSize" Value="{StaticResource Phase1CaptionFontSize}" />
+    <Setter Property="LineHeight" Value="{StaticResource Phase1CaptionLineHeight}" />
+    <Setter Property="Foreground" Value="{ThemeResource Phase1SecondaryBrush}" />
+    <Setter Property="FontWeight" Value="Normal" />
+  </Style>
+  <Style x:Key="Phase1LabelTextStyle" TargetType="TextBlock" BasedOn="{StaticResource Phase1BodyTextStyle}">
+    <Setter Property="FontSize" Value="{StaticResource Phase1LabelFontSize}" />
+    <Setter Property="LineHeight" Value="{StaticResource Phase1LabelLineHeight}" />
+    <Setter Property="Foreground" Value="{ThemeResource Phase1TextBrush}" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+  <Style x:Key="Phase1TitleTextStyle" TargetType="TextBlock" BasedOn="{StaticResource Phase1BodyTextStyle}">
+    <Setter Property="FontSize" Value="{StaticResource Phase1TitleFontSize}" />
+    <Setter Property="LineHeight" Value="{StaticResource Phase1TitleLineHeight}" />
+    <Setter Property="Foreground" Value="{ThemeResource Phase1TextBrush}" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+  <Style x:Key="Phase1ActionButtonStyle" TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
+    <Setter Property="FontFamily" Value="{StaticResource Phase1FontFamily}" />
+    <Setter Property="FontSize" Value="{StaticResource Phase1ButtonFontSize}" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="MinHeight" Value="{StaticResource Phase1ActionMinHeight}" />
+    <Setter Property="Padding" Value="{StaticResource Phase1ActionPadding}" />
+    <Setter Property="CornerRadius" Value="{StaticResource Phase1ControlCornerRadius}" />
+    <Setter Property="Background" Value="{ThemeResource Phase1SurfaceBrush}" />
+    <Setter Property="Foreground" Value="{ThemeResource Phase1TextBrush}" />
+    <Setter Property="BorderBrush" Value="{ThemeResource Phase1BorderBrush}" />
+    <Setter Property="BorderThickness" Value="{StaticResource Phase1BorderThickness}" />
+    <Setter Property="UseSystemFocusVisuals" Value="True" />
+  </Style>
+  <Style x:Key="Phase1PrimaryButtonStyle" TargetType="Button" BasedOn="{StaticResource Phase1ActionButtonStyle}">
+    <Setter Property="Background" Value="{ThemeResource Phase1AccentBrush}" />
+    <Setter Property="Foreground" Value="{ThemeResource Phase1OnAccentBrush}" />
+    <Setter Property="BorderBrush" Value="{ThemeResource Phase1AccentBrush}" />
+  </Style>
+  <Style x:Key="Phase1GhostButtonStyle" TargetType="Button" BasedOn="{StaticResource Phase1ActionButtonStyle}">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderBrush" Value="Transparent" />
+  </Style>
+  <Style x:Key="Phase1SurfaceStyle" TargetType="Border">
+    <Setter Property="Background" Value="{ThemeResource Phase1SurfaceBrush}" />
+    <Setter Property="BorderBrush" Value="{ThemeResource Phase1BorderBrush}" />
+    <Setter Property="BorderThickness" Value="{StaticResource Phase1BorderThickness}" />
+    <Setter Property="CornerRadius" Value="{StaticResource Phase1SurfaceCornerRadius}" />
+    <Setter Property="Padding" Value="{StaticResource Phase1SurfacePadding}" />
+  </Style>
+  <Style x:Key="Phase1StatusStyle" TargetType="Border">
+    <Setter Property="Background" Value="{ThemeResource Phase1SubtleBrush}" />
+    <Setter Property="CornerRadius" Value="{StaticResource Phase1ControlCornerRadius}" />
+    <Setter Property="Padding" Value="{StaticResource Phase1StatusPadding}" />
+  </Style>
+  <Style x:Key="Phase1SuccessStatusStyle" TargetType="Border" BasedOn="{StaticResource Phase1StatusStyle}">
+    <Setter Property="Background" Value="{ThemeResource Phase1SuccessSoftBrush}" />
+  </Style>
+  <Style x:Key="Phase1ErrorStatusStyle" TargetType="Border" BasedOn="{StaticResource Phase1StatusStyle}">
+    <Setter Property="Background" Value="{ThemeResource Phase1ErrorSoftBrush}" />
+  </Style>
+  <!-- Native tint applies semantic theme colors to the unchanged exported alpha artwork. -->
+  <Style x:Key="Phase1IconStyle" TargetType="BitmapIcon">
+    <Setter Property="Width" Value="{StaticResource Phase1IconSize}" />
+    <Setter Property="Height" Value="{StaticResource Phase1IconSize}" />
+    <Setter Property="ShowAsMonochrome" Value="True" />
+    <Setter Property="Foreground" Value="{ThemeResource Phase1TextBrush}" />
+  </Style>
+  <Style x:Key="Phase1CloseIconStyle" TargetType="BitmapIcon" BasedOn="{StaticResource Phase1IconStyle}">
+    <Setter Property="UriSource" Value="ms-appx:///Assets/Phase1/Close.png" />
+  </Style>
+  <Style x:Key="Phase1CopyIconStyle" TargetType="BitmapIcon" BasedOn="{StaticResource Phase1IconStyle}">
+    <Setter Property="UriSource" Value="ms-appx:///Assets/Phase1/Copy.png" />
+  </Style>
+  <Style x:Key="Phase1BookmarkIconStyle" TargetType="BitmapIcon" BasedOn="{StaticResource Phase1IconStyle}">
+    <Setter Property="UriSource" Value="ms-appx:///Assets/Phase1/Bookmark.png" />
+  </Style>
+  <Style x:Key="Phase1ChevronDownIconStyle" TargetType="BitmapIcon" BasedOn="{StaticResource Phase1IconStyle}">
+    <Setter Property="UriSource" Value="ms-appx:///Assets/Phase1/ChevronDown.png" />
+  </Style>
+  <Style x:Key="Phase1ChevronUpIconStyle" TargetType="BitmapIcon" BasedOn="{StaticResource Phase1IconStyle}">
+    <Setter Property="UriSource" Value="ms-appx:///Assets/Phase1/ChevronUp.png" />
+  </Style>
+  <Style x:Key="Phase1CheckIconStyle" TargetType="BitmapIcon" BasedOn="{StaticResource Phase1IconStyle}">
+    <Setter Property="UriSource" Value="ms-appx:///Assets/Phase1/Check.png" />
+  </Style>
+  <Style x:Key="Phase1ErrorIconStyle" TargetType="BitmapIcon" BasedOn="{StaticResource Phase1IconStyle}">
+    <Setter Property="UriSource" Value="ms-appx:///Assets/Phase1/Error.png" />
+  </Style>
+  <Style x:Key="Phase1RetryIconStyle" TargetType="BitmapIcon" BasedOn="{StaticResource Phase1IconStyle}">
+    <Setter Property="UriSource" Value="ms-appx:///Assets/Phase1/Retry.png" />
+  </Style>
+  <Style x:Key="Phase1ScanIconStyle" TargetType="BitmapIcon" BasedOn="{StaticResource Phase1IconStyle}">
+    <Setter Property="UriSource" Value="ms-appx:///Assets/Phase1/Scan.png" />
+    <Setter Property="Foreground" Value="{ThemeResource Phase1AccentBrush}" />
+  </Style>
+</ResourceDictionary>

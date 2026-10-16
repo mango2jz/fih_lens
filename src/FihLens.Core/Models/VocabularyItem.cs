@@ -1,10 +1,19 @@
-namespace FihLens.Core.Entities;
+namespace FihLens.Core.Models;
 
-public sealed record VocabularyItem(string word, string phonetic, string partOfSpeech, string meaning, string exampleSentence)
+public sealed record VocabularyItem
 {
-    public string Word { get; set; } = word;
-    public string Phonetic { get; set; } = phonetic;
-    public string PartOfSpeech { get; set; } = partOfSpeech;
-    public string Meaning { get; set; } = meaning;
-    public string ExampleSentence { get; set; } = exampleSentence;
+    private IReadOnlyList<string> _synonyms = Array.Empty<string>();
+
+    public required string Word { get; init; }
+    public string? Phonetic { get; init; }
+    public string? Reading { get; init; }
+    public string? BaseForm { get; init; }
+    public required string PartOfSpeech { get; init; }
+    public required string Meaning { get; init; }
+    public IReadOnlyList<string> Synonyms
+    {
+        get => _synonyms;
+        init => _synonyms = value ?? throw new ArgumentNullException(nameof(value));
+    }
+    public string? ExampleSentence { get; init; }
 }

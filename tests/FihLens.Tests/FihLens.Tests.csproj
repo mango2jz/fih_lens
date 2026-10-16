@@ -8,7 +8,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Include="..\..\src\FihLens.Windows\Capture\CaptureValidation.cs" Link="Windows\CaptureValidation.cs" />
+    <Compile Include="..\..\FihLens.WinUI\Presentation\CapturedTranslationSession.cs" Link="WinUI\CapturedTranslationSession.cs" />
     <PackageReference Include="coverlet.collector" Version="6.0.4" />
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
     <PackageReference Include="xunit" Version="2.9.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
@@ -20,6 +23,21 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\FihLens.Core\FihLens.Core.csproj" />
+    <ProjectReference Include="..\..\src\FihLens.Application\FihLens.Application.csproj" />
+    <ProjectReference Include="..\..\src\FihLens.Infrastructure\FihLens.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\..\FihLens.WinUI\ViewModels\PronunciationViewModel.cs" Link="WinUI\PronunciationViewModel.cs" />
+    <Compile Include="..\..\FihLens.WinUI\ViewModels\VocabularyCardViewModel.cs" Link="WinUI\VocabularyCardViewModel.cs" />
+    <Compile Include="..\..\FihLens.WinUI\ViewModels\MainWindowViewModel.cs" Link="WinUI\MainWindowViewModel.cs" />
+    <Compile Include="..\..\FihLens.WinUI\ViewModels\TranslationPopupViewModel.cs" Link="WinUI\TranslationPopupViewModel.cs" />
+    <Compile Include="..\..\FihLens.WinUI\DesignPreview\Phase1PreviewData.cs" Link="WinUI\Phase1PreviewData.cs" />
+    <Compile Include="..\..\FihLens.WinUI\Windowing\PopupPlacement.cs" Link="WinUI\PopupPlacement.cs" />
+    <Compile Include="..\..\FihLens.WinUI\Presentation\SelectionGeometry.cs" Link="WinUI\SelectionGeometry.cs" />
+    <Compile Include="..\..\FihLens.WinUI\Presentation\RegionCaptureSession.cs" Link="WinUI\RegionCaptureSession.cs" />
+    <Compile Include="..\..\FihLens.WinUI\ViewModels\SelectionOverlayViewModel.cs" Link="WinUI\SelectionOverlayViewModel.cs" />
+    <Compile Include="..\..\FihLens.WinUI\TranslationStartup.cs" Link="WinUI\TranslationStartup.cs" />
   </ItemGroup>
 
 </Project>

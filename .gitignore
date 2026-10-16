@@ -33,3 +33,6 @@ Desktop.ini
 .vscode/
 
 .omx/
+.omx-state-locks
+
+docs/handoffs

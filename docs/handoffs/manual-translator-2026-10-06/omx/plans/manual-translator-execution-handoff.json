@@ -1,0 +1,17 @@
+{
+  "authorized": true,
+  "reason": "User explicitly invoked $oh-my-codex:ultragoal implement this plan",
+  "authorized_at": "2026-10-06T15:56:23.731809+00:00",
+  "session_id": null,
+  "runtime_scope": "current CLI unscoped state; no session identity fabricated",
+  "review_cycle": 1,
+  "source": "user",
+  "review_manifest": ".omx/plans/manual-translator-phase-0-2-consensus.json",
+  "planning_artifacts_sha256": {
+    ".omx/plans/prd-manual-translator-phase-0-2.md": "46714a12cf45a9c400f008d47fe81c2dc4ae78fbcae752821fc604b188bb8174",
+    ".omx/plans/test-spec-manual-translator-phase-0-2.md": "8b29ae434c78592e23a67bf97742d517c0202c16f4c020c0765f5ea657f8e263",
+    ".omx/plans/manual-translator-dotnet-evidence.md": "8a6cadf4ed88ce766d290b419742e216da4e32403e15f209b7d3f37c53922a6d",
+    ".omx/plans/manual-translator-cloud-contracts.md": "c09a7ecabe35c77e3eaf234808b670cd601c03bee35853d5cbd3993b22861d1f"
+  },
+  "host_verified": false
+}

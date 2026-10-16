@@ -1,0 +1,30 @@
+{
+  "files": {
+    "HANDOFF.md": "bfba429941a548e946a3fd7f08e6a068dc1a28170773d80a1e818fb539f231be",
+    "omx/context/manual-translator-phase-0-2-20261006T152828Z.md": "159281273c8a02a595c437f8e9c976354e88ac35e3c62ac8d5bd25986eda327b",
+    "omx/plans/manual-translator-architect-cycle-1.md": "a954090fa573989fc5ad1ad1354753439014f3d47eb20d62e080db4ddf6e82e2",
+    "omx/plans/manual-translator-cloud-contracts.md": "c09a7ecabe35c77e3eaf234808b670cd601c03bee35853d5cbd3993b22861d1f",
+    "omx/plans/manual-translator-critic-cycle-1.md": "4a578c941675cacff1614a8032de7fe225d23f5256404194791a859356ec03dc",
+    "omx/plans/manual-translator-dotnet-evidence.md": "8a6cadf4ed88ce766d290b419742e216da4e32403e15f209b7d3f37c53922a6d",
+    "omx/plans/manual-translator-execution-handoff.json": "77c63cf09344c8852188cc494a8b271412d0bce8563bf081aa2829791a890f67",
+    "omx/plans/manual-translator-phase-0-2-consensus.json": "502f1a35ddccb1aee57108b417e4bbf0ede2965e68a870993993a3571db44ba6",
+    "omx/plans/manual-translator-phase-0-2-intake.json": "bc5f1b6b0449f2c209486e31d8b88977ea1c9e3d2faaa4b4b762727c963c082d",
+    "omx/plans/manual-translator-ultragoal-brief.md": "7c3cfaf3b4cd078b1a15089c345a461cdd6a1f22466e27693c47aaa39fd6a0d2",
+    "omx/plans/phase-0-application-architect-review-cycle-1.md": "3366351f55fefdf092629d30312cef1d2a1b8cd054b51831d247e8e6f95bde9d",
+    "omx/plans/phase-0-application-consensus.json": "eb90ee0c458c4877d557e6c5674b7ce6fa925155a0eacf1383e924dbc7962135",
+    "omx/plans/phase-0-application-critic-review-cycle-1.md": "6edca44c47ecce8ef4d702c1b588dcb2e727aefe2f5b9dd2c66ceb7685b36fc8",
+    "omx/plans/phase-0-application-intake.json": "86096a9cb5292d8f253eea62c41187504c0326d73e7494ad571bc70657c2d95b",
+    "omx/plans/phase-0-application-operation-plan.md": "9aaa31f3f97dd40b627beecf7d13be7d7a15d21809c8096379a5292b1db0c861",
+    "omx/plans/phase-0-core-operation-plan.md": "8fc463f100c7974e2c03898aa9012dfa66603c75058eb1b63110f7ede36d4917",
+    "omx/plans/prd-manual-translator-phase-0-2.md": "46714a12cf45a9c400f008d47fe81c2dc4ae78fbcae752821fc604b188bb8174",
+    "omx/plans/test-spec-manual-translator-phase-0-2.md": "8b29ae434c78592e23a67bf97742d517c0202c16f4c020c0765f5ea657f8e263",
+    "omx/plans/test-spec-phase-0-application.md": "8b9bbfc14b2b020da1c139634ff6ea7dc96e9c32f317155ec555916a4341e7f7",
+    "omx/ultragoal/brief.md": "7c3cfaf3b4cd078b1a15089c345a461cdd6a1f22466e27693c47aaa39fd6a0d2",
+    "omx/ultragoal/goals.json": "f1504cf26d8c36b0222238443772c7e02b222957a912c3a1157cdb1ab4163131",
+    "omx/ultragoal/ledger.jsonl": "cb0acea51ff40ef7367abe6276f15f2681757d46fae00f75b6b5ad429dc293eb",
+    "omx/ultragoal/pause-native-goal-snapshot.json": "e4b1bf99269065ab8eea4611a1ee9ce341d721da4dae15ebc2333f656f8994f8",
+    "pause-status.json": "d380cf10240b2355a810ae792e235484ab1e220013ccebc16d89c12f1ffa6b53",
+    "validation.json": "d0b6d4c2aeffea88c2bab66e7b74b6cb5379dd385dd862428b8f8e41f5bece96"
+  },
+  "restore_scope": "Only omx/plans, omx/context, omx/ultragoal. No hook state/locks/native authority transfer."
+}
