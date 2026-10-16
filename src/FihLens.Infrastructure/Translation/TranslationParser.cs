@@ -25,6 +25,8 @@ public sealed class TranslationParser
         return new TranslationResult
         {
             OriginalText = request.Text,
+            SourceLanguage = request.SourceLanguage,
+            TargetLanguage = request.TargetLanguage,
             NaturalTranslation = naturalTranslation,
             Explanation = OptionalText(root, "explanation"),
             Context = OptionalText(root, "context"),
@@ -42,10 +44,47 @@ public sealed class TranslationParser
         {
             Word = RequiredText(element, "word"),
             Phonetic = OptionalText(element, "phonetic"),
+            Reading = OptionalBoundedText(element, "reading"),
+            BaseForm = OptionalBoundedText(element, "baseForm"),
             PartOfSpeech = RequiredText(element, "partOfSpeech"),
             Meaning = RequiredText(element, "meaning"),
+            Synonyms = ParseSynonyms(element),
             ExampleSentence = OptionalText(element, "exampleSentence")
         };
+    }
+
+    private static string? OptionalBoundedText(JsonElement element, string name)
+    {
+        var text = OptionalText(element, name);
+        if (text is not null && (string.IsNullOrWhiteSpace(text) || text.Length > 200))
+        {
+            throw new JsonException($"'{name}' must be a nonblank string of at most 200 characters.");
+        }
+
+        return text;
+    }
+
+    private static IReadOnlyList<string> ParseSynonyms(JsonElement element)
+    {
+        if (!element.TryGetProperty("synonyms", out var value))
+        {
+            return Array.Empty<string>();
+        }
+        RequireKind(value, JsonValueKind.Array);
+        if (value.GetArrayLength() > 5)
+        {
+            throw new JsonException("'synonyms' may contain at most five items.");
+        }
+
+        var synonyms = value.EnumerateArray().Select(item =>
+        {
+            if (item.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(item.GetString()) || item.GetString()!.Length > 200)
+            {
+                throw new JsonException("Each synonym must be a nonblank string of at most 200 characters.");
+            }
+            return item.GetString()!;
+        }).ToArray();
+        return Array.AsReadOnly(synonyms);
     }
 
     private static GrammarPoint ParseGrammar(JsonElement element)

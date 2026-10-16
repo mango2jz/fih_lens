@@ -1,3 +1,5 @@
+using FihLens.Core.Enums;
+
 namespace FihLens.Core.Models;
 
 public sealed record TranslationResult
@@ -7,6 +9,8 @@ public sealed record TranslationResult
     private IReadOnlyList<TranslationAlternative> _alternatives = Array.Empty<TranslationAlternative>();
 
     public required string OriginalText { get; init; }
+    public required Language SourceLanguage { get; init; }
+    public required Language TargetLanguage { get; init; }
     public string? NaturalTranslation { get; init; }
     public string? Explanation { get; init; }
     public string? Context { get; init; }

@@ -90,7 +90,7 @@ public sealed class DeepSeekTranslationProviderTests
     }
 
     [Fact]
-    public async Task TranslateAsync_RejectsMalformedAnalysisAndUnsupportedRequestBeforeHttp()
+    public async Task TranslateAsync_RejectsMalformedAnalysisAndSupportsJapanesePair()
     {
         using var malformedClient = new HttpClient(ProviderTestHandler.Respond(HttpStatusCode.OK, Envelope(content: "{}")));
         var malformed = await Assert.ThrowsAsync<TranslationProviderException>(() => Create(malformedClient).TranslateAsync(Request()));
@@ -98,9 +98,10 @@ public sealed class DeepSeekTranslationProviderTests
 
         var handler = ProviderTestHandler.Respond(HttpStatusCode.OK, Envelope());
         using var client = new HttpClient(handler);
-        var unsupported = new TranslationRequest("こんにちは", Language.Japanese, Language.English);
-        await Assert.ThrowsAsync<NotSupportedException>(() => Create(client).TranslateAsync(unsupported));
-        Assert.Equal(0, handler.Calls);
+        var japanese = await Create(client).TranslateAsync(new TranslationRequest("こんにちは", Language.Japanese, Language.English));
+        Assert.Equal(Language.Japanese, japanese.SourceLanguage);
+        Assert.Equal(Language.English, japanese.TargetLanguage);
+        Assert.Equal(1, handler.Calls);
     }
 
     [Fact]
@@ -206,9 +207,10 @@ public sealed class DeepSeekTranslationProviderTests
         var requests = new[]
         {
             new TranslationRequest("Hello", Language.Auto, Language.Vietnamese),
-            new TranslationRequest("Hello", Language.English, Language.Japanese),
+            new TranslationRequest("Hello", Language.English, Language.English),
             new TranslationRequest("Hello", Language.English, Language.Vietnamese, mode: TranslationMode.Explain),
-            new TranslationRequest("Hello", Language.English, Language.Vietnamese, new FihLens.Core.ValueObjects.CefrLearningLevel(CefrLevel.A1))
+            new TranslationRequest("Hello", Language.English, Language.Vietnamese, new FihLens.Core.ValueObjects.CefrLearningLevel(CefrLevel.A1)),
+            new TranslationRequest("こんにちは", Language.Japanese, Language.English, new FihLens.Core.ValueObjects.JlptLearningLevel(FihLens.Core.Enums.JlptLevel.N5))
         };
         foreach (var request in requests)
             await Assert.ThrowsAsync<NotSupportedException>(() => Create(client).TranslateAsync(request));

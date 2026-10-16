@@ -55,6 +55,8 @@ public sealed class FakeTranslationProvider : ITranslationProvider
     private static TranslationResult CreateResult() => new()
     {
         OriginalText = "Hello world",
+        SourceLanguage = Language.English,
+        TargetLanguage = Language.Vietnamese,
         NaturalTranslation = "Xin chào thế giới",
         Explanation = "A simple greeting to the world.",
         Context = "Greeting",

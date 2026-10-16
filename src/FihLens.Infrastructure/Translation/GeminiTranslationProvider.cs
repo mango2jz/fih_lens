@@ -79,7 +79,9 @@ public sealed class GeminiTranslationProvider : ITranslationProvider
             "tone":{"type":["string","null"]},
             "vocabulary":{"type":"array","items":{"type":"object","properties":{
               "word":{"type":"string"},"phonetic":{"type":["string","null"]},
+              "reading":{"type":["string","null"]},"baseForm":{"type":["string","null"]},
               "partOfSpeech":{"type":"string"},"meaning":{"type":"string"},
+              "synonyms":{"type":"array","items":{"type":"string"}},
               "exampleSentence":{"type":["string","null"]}},
               "required":["word","partOfSpeech","meaning"]}},
             "grammar":{"type":"array","items":{"type":"object","properties":{

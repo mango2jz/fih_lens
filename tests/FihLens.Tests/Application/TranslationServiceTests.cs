@@ -98,7 +98,7 @@ public sealed class TranslationServiceTests
         Assert.Same(secondRequest, calls[1].Request);
         Assert.Equal(secondCancellation.Token, calls[1].Token);
 
-        var secondResult = new TranslationResult { OriginalText = "Second request" };
+        var secondResult = new TranslationResult { OriginalText = "Second request", SourceLanguage = Language.English, TargetLanguage = Language.Vietnamese };
         secondCompletion.SetResult(secondResult);
         Assert.Same(secondResult, await secondTask.WaitAsync(TimeSpan.FromSeconds(5)));
         Assert.False(firstTask.IsCompleted);
@@ -117,7 +117,7 @@ public sealed class TranslationServiceTests
     }
 
     private static TranslationRequest Request() => new("Hello world", Language.English, Language.Vietnamese);
-    private static TranslationResult Result() => new() { OriginalText = "Hello world" };
+    private static TranslationResult Result() => new() { OriginalText = "Hello world", SourceLanguage = Language.English, TargetLanguage = Language.Vietnamese };
 
     private sealed class DelegateProvider(Func<TranslationRequest, CancellationToken, Task<TranslationResult>> translate)
         : ITranslationProvider

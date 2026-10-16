@@ -40,6 +40,10 @@ public sealed class GeminiTranslationProviderTests
         Assert.Equal(new[] { "naturalTranslation", "vocabulary", "grammar", "alternatives" }, schema.GetProperty("required").EnumerateArray().Select(x => x.GetString()));
         var properties = schema.GetProperty("properties");
         Assert.Equal(new[] { "word", "partOfSpeech", "meaning" }, properties.GetProperty("vocabulary").GetProperty("items").GetProperty("required").EnumerateArray().Select(x => x.GetString()));
+        var vocabularyProperties = properties.GetProperty("vocabulary").GetProperty("items").GetProperty("properties");
+        Assert.Equal("array", vocabularyProperties.GetProperty("synonyms").GetProperty("type").GetString());
+        Assert.Equal("string", vocabularyProperties.GetProperty("reading").GetProperty("type")[0].GetString());
+        Assert.Equal("string", vocabularyProperties.GetProperty("baseForm").GetProperty("type")[0].GetString());
         Assert.Equal("pattern", Assert.Single(properties.GetProperty("grammar").GetProperty("items").GetProperty("required").EnumerateArray()).GetString());
         Assert.Equal("text", Assert.Single(properties.GetProperty("alternatives").GetProperty("items").GetProperty("required").EnumerateArray()).GetString());
         Assert.Equal(new[] { "string", "null" }, properties.GetProperty("tone").GetProperty("type").EnumerateArray().Select(x => x.GetString()));
@@ -97,13 +101,15 @@ public sealed class GeminiTranslationProviderTests
     }
 
     [Fact]
-    public async Task TranslateAsync_RejectsUnsupportedRequestBeforeHttp()
+    public async Task TranslateAsync_SupportsJapanesePairAndUsesRequestMetadata()
     {
         var handler = ProviderTestHandler.Respond(HttpStatusCode.OK, Envelope);
         using var client = new HttpClient(handler);
         var request = new TranslationRequest("こんにちは", Language.Japanese, Language.English);
-        await Assert.ThrowsAsync<NotSupportedException>(() => Create(client).TranslateAsync(request));
-        Assert.Equal(0, handler.Calls);
+        var result = await Create(client).TranslateAsync(request);
+        Assert.Equal(Language.Japanese, result.SourceLanguage);
+        Assert.Equal(Language.English, result.TargetLanguage);
+        Assert.Equal(1, handler.Calls);
     }
 
     [Fact]
@@ -260,9 +266,9 @@ public sealed class GeminiTranslationProviderTests
         var requests = new[]
         {
             new TranslationRequest("Hello", Language.Auto, Language.Vietnamese),
-            new TranslationRequest("Hello", Language.English, Language.Japanese),
             new TranslationRequest("Hello", Language.English, Language.Vietnamese, mode: TranslationMode.Explain),
-            new TranslationRequest("Hello", Language.English, Language.Vietnamese, new FihLens.Core.ValueObjects.CefrLearningLevel(CefrLevel.A1))
+            new TranslationRequest("Hello", Language.English, Language.Vietnamese, new FihLens.Core.ValueObjects.CefrLearningLevel(CefrLevel.A1)),
+            new TranslationRequest("こんにちは", Language.Japanese, Language.English, new FihLens.Core.ValueObjects.JlptLearningLevel(FihLens.Core.Enums.JlptLevel.N5))
         };
         foreach (var request in requests)
             await Assert.ThrowsAsync<NotSupportedException>(() => Create(client).TranslateAsync(request));
