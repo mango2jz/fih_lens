@@ -2,6 +2,7 @@
 using CommunityToolkit.Mvvm.Input;
 using FihLens.Application.Dictionary;
 using FihLens.Application.Translation;
+using FihLens.Application.Pronunciation;
 using FihLens.Core.Enums;
 using FihLens.Core.Models;
 
@@ -13,14 +14,19 @@ public partial class MainWindowViewModel : ObservableObject
     private readonly string? _providerLabel;
     private readonly string _aiUnavailableReason;
     private DictionaryLookupService? _dictionaryService;
+    private string _dictionaryUnavailableReason = "Local dictionary unavailable. Install the approved dictionary data, then restart FIH Lens.";
     private CancellationTokenSource? _operationCancellation;
     private long _generation;
     private bool _closed;
     private bool _dictionaryOperation;
 
+    public IReadOnlyList<Language> AvailableLanguages { get; } = [Language.English, Language.Vietnamese, Language.Japanese];
+
     public MainWindowViewModel(TranslationService? translationService = null, string? providerLabel = null,
-        string? aiUnavailableReason = null)
+        string? aiUnavailableReason = null, IPronunciationService? pronunciationService = null)
     {
+        Pronunciation = new PronunciationViewModel(pronunciationService);
+        Pronunciation.SetSource(InputText, SourceLanguage);
         _translationService = translationService;
         _providerLabel = providerLabel;
         _aiUnavailableReason = aiUnavailableReason ?? "Ask AI is unavailable. Configure Gemini or DeepSeek, then restart FIH Lens.";
@@ -29,12 +35,40 @@ public partial class MainWindowViewModel : ObservableObject
 
     public string AiSendNotice => _translationService is null
         ? _aiUnavailableReason : $"Sends this text to {_providerLabel}.";
+    public PronunciationViewModel Pronunciation { get; }
+
+    [ObservableProperty]
+    public partial IReadOnlyList<VocabularyCardViewModel> WordCards { get; set; } = [];
+
+    partial void OnResultChanged(TranslationResult? value)
+    {
+        Pronunciation.Stop();
+        Pronunciation.SetSource(value?.OriginalText ?? InputText, value?.SourceLanguage ?? SourceLanguage);
+        WordCards = value?.Vocabulary.Select(item => new VocabularyCardViewModel(item, Pronunciation)).ToArray() ?? [];
+    }
     public string AiSourceLabel => _translationService is null ? "AI unavailable" : $"Generated AI output · {_providerLabel}";
+    public string SourceLanguageLabel => $"From: {LanguageName(SourceLanguage)}";
+    public string TargetLanguageLabel => $"To: {LanguageName(TargetLanguage)}";
+    public string LanguagePairLabel => $"{LanguageName(SourceLanguage)} → {LanguageName(TargetLanguage)}";
+    public string? LanguagePairUnavailableReason =>
+        !AvailableLanguages.Contains(SourceLanguage) || !AvailableLanguages.Contains(TargetLanguage)
+            ? "Choose English, Vietnamese, or Japanese for both languages."
+            : SourceLanguage == TargetLanguage ? "Choose two different languages to translate." : null;
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(LookupDictionaryCommand))]
     [NotifyCanExecuteChangedFor(nameof(AskAiCommand))]
     public partial string InputText { get; set; } = "Hello world";
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(LookupDictionaryCommand))]
+    [NotifyCanExecuteChangedFor(nameof(AskAiCommand))]
+    public partial Language SourceLanguage { get; set; } = Language.English;
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(LookupDictionaryCommand))]
+    [NotifyCanExecuteChangedFor(nameof(AskAiCommand))]
+    public partial Language TargetLanguage { get; set; } = Language.Vietnamese;
 
     [ObservableProperty]
     public partial TranslationResult? Result { get; set; }
@@ -67,8 +101,8 @@ public partial class MainWindowViewModel : ObservableObject
     public partial bool IsBusy { get; set; }
 
     public bool IsEditingEnabled => !_closed && !IsBusy;
-    private bool CanStart() => !_closed && !IsBusy && !string.IsNullOrWhiteSpace(InputText);
-    private bool CanLookupDictionary() => CanStart() && _dictionaryService is not null;
+    private bool CanStart() => !_closed && !IsBusy && !string.IsNullOrWhiteSpace(InputText) && LanguagePairUnavailableReason is null;
+    private bool CanLookupDictionary() => CanStart() && SourceLanguage == Language.English && TargetLanguage == Language.Vietnamese && _dictionaryService is not null;
     private bool CanAskAi() => CanStart() && _translationService is not null;
     private bool CanCancel() => !_closed && IsBusy && _operationCancellation is { IsCancellationRequested: false };
 
@@ -78,9 +112,8 @@ public partial class MainWindowViewModel : ObservableObject
         if (_closed) return;
         if (service is not null && source is null) throw new ArgumentNullException(nameof(source));
         _dictionaryService = service;
-        DictionaryStatusText = service is null
-            ? unavailableReason ?? "Local dictionary unavailable. Install the approved dictionary data, then restart FIH Lens."
-            : "Ready · exact whole word or phrase lookup";
+        _dictionaryUnavailableReason = unavailableReason ?? "Local dictionary unavailable. Install the approved dictionary data, then restart FIH Lens.";
+        UpdateDictionaryStatus();
         DictionarySourceLabel = source is null ? "Local dictionary unavailable"
             : $"{source.Name} · {source.QualityStatus} · sample review only";
         DictionarySourceDetails = source is null ? "" :
@@ -89,9 +122,35 @@ public partial class MainWindowViewModel : ObservableObject
         LookupDictionaryCommand.NotifyCanExecuteChanged();
     }
 
+    private bool IsDictionaryPair => SourceLanguage == Language.English && TargetLanguage == Language.Vietnamese;
+
+    private void UpdateDictionaryStatus() => DictionaryStatusText = !IsDictionaryPair
+        ? "Local dictionary is available for English→Vietnamese only; use Ask AI for this pair."
+        : _dictionaryService is not null ? "Ready · exact whole word or phrase lookup" : _dictionaryUnavailableReason;
+
+    partial void OnSourceLanguageChanged(Language value) => OnLanguagePairChanged();
+    partial void OnTargetLanguageChanged(Language value) => OnLanguagePairChanged();
+
+    private void OnLanguagePairChanged()
+    {
+        OnPropertyChanged(nameof(SourceLanguageLabel));
+        OnPropertyChanged(nameof(TargetLanguageLabel));
+        OnPropertyChanged(nameof(LanguagePairLabel));
+        OnPropertyChanged(nameof(LanguagePairUnavailableReason));
+        InvalidateOperation();
+        ClearResultsForEdit();
+        LookupDictionaryCommand.NotifyCanExecuteChanged();
+        AskAiCommand.NotifyCanExecuteChanged();
+    }
+
     partial void OnInputTextChanged(string value)
     {
         InvalidateOperation();
+        ClearResultsForEdit();
+    }
+
+    private void ClearResultsForEdit()
+    {
         Result = null;
         DictionaryResult = null;
         DictionaryText = "";
@@ -99,7 +158,7 @@ public partial class MainWindowViewModel : ObservableObject
         AiInputSnapshot = "";
         ErrorMessage = null;
         DictionaryErrorMessage = null;
-        if (_dictionaryService is not null) DictionaryStatusText = "Ready · exact whole word or phrase lookup";
+        UpdateDictionaryStatus();
         AiStatusText = _translationService is null ? _aiUnavailableReason : "Ready";
     }
 
@@ -146,7 +205,9 @@ public partial class MainWindowViewModel : ObservableObject
             }
             else
             {
-                var request = new TranslationRequest(text, Language.English, Language.Vietnamese);
+                var sourceLanguage = SourceLanguage;
+                var targetLanguage = TargetLanguage;
+                var request = new TranslationRequest(text, sourceLanguage, targetLanguage);
                 var result = await _translationService!.TranslateAsync(request, cancellation.Token);
                 if (!IsCurrent(generation, cancellation.Token)) return;
                 Result = result;
@@ -181,11 +242,22 @@ public partial class MainWindowViewModel : ObservableObject
         }
     }
 
+    private static string LanguageName(Language language) => language switch
+    {
+        Language.English => "English",
+        Language.Vietnamese => "Vietnamese",
+        Language.Japanese => "Japanese",
+        Language.Auto => "Auto",
+        _ => language.ToString()
+    };
+
     private bool IsCurrent(long generation, CancellationToken token) =>
         !_closed && generation == _generation && !token.IsCancellationRequested;
 
     private void InvalidateOperation()
     {
+        Pronunciation.Stop();
+        Pronunciation.SetSource(InputText, SourceLanguage);
         ++_generation;
         _operationCancellation?.Cancel();
         CancelCommand.NotifyCanExecuteChanged();
@@ -203,6 +275,7 @@ public partial class MainWindowViewModel : ObservableObject
     public void Close()
     {
         if (_closed) return;
+        Pronunciation.Close();
         _closed = true;
         InvalidateOperation();
         OnPropertyChanged(nameof(IsEditingEnabled));

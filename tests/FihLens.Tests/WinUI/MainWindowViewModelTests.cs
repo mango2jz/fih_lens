@@ -19,6 +19,73 @@ public sealed class MainWindowViewModelTests
         Assert.True(viewModel.AskAiCommand.CanExecute(null));
     }
 
+    [Theory]
+    [InlineData(Language.English, Language.Vietnamese)]
+    [InlineData(Language.Vietnamese, Language.English)]
+    [InlineData(Language.English, Language.Japanese)]
+    [InlineData(Language.Japanese, Language.English)]
+    [InlineData(Language.Vietnamese, Language.Japanese)]
+    [InlineData(Language.Japanese, Language.Vietnamese)]
+    public async Task AskAiUsesSelectedLanguagePair(Language source, Language target)
+    {
+        var provider = new ControlledProvider();
+        provider.Completion.SetResult(Result("hello", source, target));
+        var viewModel = new MainWindowViewModel(new TranslationService(provider), "Gemini")
+        {
+            SourceLanguage = source,
+            TargetLanguage = target
+        };
+
+        await viewModel.AskAiCommand.ExecuteAsync(null);
+
+        Assert.Equal(source, provider.Request!.SourceLanguage);
+        Assert.Equal(target, provider.Request.TargetLanguage);
+        Assert.Equal($"{source} → {target}", viewModel.LanguagePairLabel);
+        Assert.Equal(source, viewModel.Result!.SourceLanguage);
+    }
+
+    [Theory]
+    [InlineData(Language.English, Language.English)]
+    [InlineData(Language.Auto, Language.Japanese)]
+    [InlineData(Language.English, Language.Auto)]
+    [InlineData((Language)99, Language.Japanese)]
+    public void InvalidPairDisablesAskAi(Language source, Language target)
+    {
+        var viewModel = new MainWindowViewModel(new TranslationService(new ControlledProvider()), "Gemini")
+        {
+            SourceLanguage = source,
+            TargetLanguage = target
+        };
+
+        Assert.False(viewModel.AskAiCommand.CanExecute(null));
+        Assert.NotNull(viewModel.LanguagePairUnavailableReason);
+    }
+
+    [Fact]
+    public async Task ChangingLanguagePairCancelsAndClearsPriorResultAndDelayedDictionaryStaysDisabled()
+    {
+        var provider = new ControlledProvider();
+        var viewModel = new MainWindowViewModel(new TranslationService(provider), "Gemini");
+        var operation = viewModel.AskAiCommand.ExecuteAsync(null);
+        await provider.Started.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        viewModel.TargetLanguage = Language.Japanese;
+        Assert.True(provider.Token.IsCancellationRequested);
+        Assert.Null(viewModel.Result);
+        Assert.False(viewModel.LookupDictionaryCommand.CanExecute(null));
+        provider.Completion.SetResult(Result("stale"));
+        await operation.WaitAsync(TimeSpan.FromSeconds(2));
+        Assert.Null(viewModel.Result);
+        Assert.Contains("English→Vietnamese only", viewModel.DictionaryStatusText);
+        viewModel.SetDictionaryAvailability(null, null, "late load failure");
+        Assert.False(viewModel.LookupDictionaryCommand.CanExecute(null));
+        Assert.Contains("English→Vietnamese only", viewModel.DictionaryStatusText);
+        viewModel.TargetLanguage = Language.Vietnamese;
+        Assert.Equal("late load failure", viewModel.DictionaryStatusText);
+        Assert.False(viewModel.LookupDictionaryCommand.CanExecute(null));
+        viewModel.SetDictionaryAvailability(new DictionaryLookupService(new ControlledLookup()), Source);
+        Assert.True(viewModel.LookupDictionaryCommand.CanExecute(null));
+    }
+
     [Fact]
     public async Task TranslateSnapshotsInputAndPublishesResult()
     {
@@ -37,7 +104,7 @@ public sealed class MainWindowViewModelTests
         Assert.Equal(TranslationMode.Translate, provider.Request.Mode);
         Assert.Null(provider.Request.UserLevel);
 
-        var result = new TranslationResult { OriginalText = provider.Request.Text, NaturalTranslation = "Xin chào" };
+        var result = new TranslationResult { OriginalText = provider.Request.Text, SourceLanguage = provider.Request.SourceLanguage, TargetLanguage = provider.Request.TargetLanguage, NaturalTranslation = "Xin chào" };
         provider.Completion.SetResult(result);
         await operation.WaitAsync(TimeSpan.FromSeconds(2));
 
@@ -59,7 +126,7 @@ public sealed class MainWindowViewModelTests
         Assert.True(provider.Token.IsCancellationRequested);
         Assert.True(viewModel.IsBusy);
 
-        provider.Completion.SetResult(new TranslationResult { OriginalText = "Hello world" });
+        provider.Completion.SetResult(Result("Hello world"));
         await operation.WaitAsync(TimeSpan.FromSeconds(2));
 
         Assert.Null(viewModel.Result);
@@ -101,7 +168,7 @@ public sealed class MainWindowViewModelTests
 
         viewModel.Close();
         Assert.True(provider.Token.IsCancellationRequested);
-        provider.Completion.SetResult(new TranslationResult { OriginalText = "late" });
+        provider.Completion.SetResult(Result("late"));
         await operation.WaitAsync(TimeSpan.FromSeconds(2));
 
         Assert.Empty(displayChangesAfterClose);
@@ -141,7 +208,7 @@ public sealed class MainWindowViewModelTests
         var provider = new ControlledProvider();
         var viewModel = new MainWindowViewModel(new TranslationService(provider), "Gemini")
         {
-            Result = new TranslationResult { OriginalText = "old" },
+            Result = Result("old"),
             ErrorMessage = "old failure"
         };
         var operation = viewModel.AskAiCommand.ExecuteAsync(null);
@@ -153,7 +220,7 @@ public sealed class MainWindowViewModelTests
         await viewModel.AskAiCommand.ExecuteAsync(null);
         Assert.Equal(1, provider.CallCount);
         Assert.Equal("Hello world", provider.Request!.Text);
-        provider.Completion.SetResult(new TranslationResult { OriginalText = "Hello world" });
+        provider.Completion.SetResult(Result("Hello world"));
         await operation.WaitAsync(TimeSpan.FromSeconds(2));
     }
 
@@ -289,7 +356,7 @@ public sealed class MainWindowViewModelTests
         viewModel.SetDictionaryAvailability(new DictionaryLookupService(lookup), Source);
         await viewModel.LookupDictionaryCommand.ExecuteAsync(null);
         var dictionaryResult = viewModel.DictionaryResult;
-        viewModel.Result = new TranslationResult { OriginalText = "previous output", NaturalTranslation = "not payload" };
+        viewModel.Result = Result("previous output");
         await viewModel.AskAiCommand.ExecuteAsync(null);
         Assert.Equal(1, provider.CallCount);
         Assert.Equal(1, handler.CallCount);
@@ -312,7 +379,7 @@ public sealed class MainWindowViewModelTests
         viewModel.SetDictionaryAvailability(new DictionaryLookupService(lookup), Source);
         if (dictionaryFails)
         {
-            provider.Completion.SetResult(new TranslationResult { OriginalText = viewModel.InputText, NaturalTranslation = "success" });
+            provider.Completion.SetResult(Result(viewModel.InputText));
             await viewModel.AskAiCommand.ExecuteAsync(null);
             var success = viewModel.Result;
             lookup.Completion.SetException(new InvalidOperationException("private"));
@@ -390,7 +457,7 @@ public sealed class MainWindowViewModelTests
         }
         else
         {
-            if (completion == "success") provider.Completion.SetResult(new TranslationResult { OriginalText = "stale" });
+            if (completion == "success") provider.Completion.SetResult(Result("stale"));
             else if (completion == "fault") provider.Completion.SetException(new InvalidOperationException("private late failure"));
             else provider.Completion.SetCanceled(token);
         }
@@ -443,7 +510,7 @@ public sealed class MainWindowViewModelTests
     public async Task BlankAndClosedCommandsStartNeitherCapabilityAndAiRetainsItsLargerInputLimit()
     {
         var provider = new ControlledProvider();
-        provider.Completion.SetResult(new TranslationResult { OriginalText = "large" });
+        provider.Completion.SetResult(Result("large"));
         var lookup = new ControlledLookup();
         var viewModel = new MainWindowViewModel(new TranslationService(provider), "Gemini");
         viewModel.SetDictionaryAvailability(new DictionaryLookupService(lookup), Source);
@@ -514,6 +581,8 @@ public sealed class MainWindowViewModelTests
     private static readonly DictionarySource Source = new("fixture", "Fixture dictionary", "revision", "en", "vi",
         "CC BY-SA 4.0", "https://example.test/source", "Complete attribution", "generated",
         "100 frozen queries only", new Dictionary<string, string> { ["NOTICE"] = "Full notice\n" + new string('x', 10_000) });
+    private static TranslationResult Result(string text, Language source = Language.English, Language target = Language.Vietnamese) =>
+        new() { OriginalText = text, SourceLanguage = source, TargetLanguage = target };
     private static readonly DictionaryEntry Entry = new("Exact phrase", ["nghĩa một", "nghĩa một", "<script>plain text only</script>"],
         "noun", "example", "fixture", "original-article", "original-origin");
 
@@ -556,7 +625,7 @@ public sealed class MainWindowViewModelTests
             Request = request;
             using var content = new StringContent(request.Text);
             using var response = await client.PostAsync("https://example.test/ai", content, cancellationToken);
-            return new TranslationResult { OriginalText = request.Text, NaturalTranslation = "synthetic output" };
+            return new TranslationResult { OriginalText = request.Text, SourceLanguage = request.SourceLanguage, TargetLanguage = request.TargetLanguage, NaturalTranslation = "synthetic output" };
         }
     }
     private sealed class ControlledProvider : ITranslationProvider

@@ -1,0 +1,31 @@
+<Window
+    x:Class="FihLens.WinUI.Views.SelectionToolbarWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Border Background="{ThemeResource Phase1SurfaceBrush}" BorderBrush="{ThemeResource Phase1BorderBrush}"
+            BorderThickness="1" Padding="6">
+        <Grid x:Name="ToolbarRoot" ColumnSpacing="8" AutomationProperties.HelpText="Space creates a region. Arrows move it; Shift and arrows resize it. Enter confirms; Escape cancels.">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBlock Text="{x:Bind ViewModel.Status, Mode=OneWay}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"
+                       Style="{StaticResource Phase1CaptionTextStyle}" TextWrapping="NoWrap"
+                       ToolTipService.ToolTip="{x:Bind ViewModel.Status, Mode=OneWay}" AutomationProperties.LiveSetting="Polite" />
+            <TextBlock Grid.Column="1" Text="{x:Bind ViewModel.Dimensions, Mode=OneWay}" VerticalAlignment="Center"
+                       Style="{StaticResource Phase1CaptionTextStyle}" TextWrapping="NoWrap" />
+                <Button Grid.Column="2" x:Name="CreateButton" MinHeight="32" Click="Create_Click"
+                        Style="{StaticResource Phase1ActionButtonStyle}" AutomationProperties.Name="Create region"
+                        AutomationProperties.HelpText="Space creates a region. Arrows move it; Shift and arrows resize it.">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <BitmapIcon Style="{StaticResource Phase1ScanIconStyle}" /><TextBlock Text="Create" />
+                    </StackPanel>
+                </Button>
+                <Button Grid.Column="3" Content="Confirm" MinHeight="32" IsEnabled="{x:Bind ViewModel.CanConfirm, Mode=OneWay}"
+                        Style="{StaticResource Phase1PrimaryButtonStyle}" Click="Confirm_Click"
+                        AutomationProperties.HelpText="Enter confirms the selected region." />
+                <Button Grid.Column="4" Content="Cancel" MinHeight="32" Click="Cancel_Click" Style="{StaticResource Phase1ActionButtonStyle}"
+                        AutomationProperties.HelpText="Escape cancels without capturing." />
+        </Grid>
+    </Border>
+</Window>
