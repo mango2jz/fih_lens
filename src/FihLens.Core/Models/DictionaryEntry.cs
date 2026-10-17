@@ -1,7 +1,10 @@
 namespace FihLens.Core.Models;
 
 public sealed record DictionaryEntry(string Headword, IReadOnlyList<string> Senses,
-    string? PartOfSpeech, string? Example, string SourceId, string SourceArticleId, string SourceOrigin);
+    string? PartOfSpeech, string? Example, string SourceId, string SourceArticleId, string SourceOrigin)
+{
+    public JapaneseDictionaryData? Japanese { get; init; }
+}
 
 public sealed record DictionarySource(string SourceId, string Name, string Revision,
     string SourceLanguage, string TargetLanguage, string License, string SourceUrl,
@@ -12,4 +15,5 @@ public sealed record DictionaryLookupResult(string OriginalText, DictionarySourc
     IReadOnlyList<DictionaryEntry> Entries)
 {
     public bool IsMatch => Entries.Count != 0;
+    public bool IsTruncated { get; init; }
 }

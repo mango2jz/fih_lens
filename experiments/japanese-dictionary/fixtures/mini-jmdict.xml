@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE JMdict SYSTEM "http://www.edrdg.org/jmdict/jmdict.dtd">
+<!-- JMdict created: 2026-01-02 -->
+<JMdict>
+  <entry><ent_seq>100</ent_seq><k_ele><keb>生</keb><ke_inf>usually kana</ke_inf></k_ele><r_ele><reb>せい</reb><re_restr>生</re_restr></r_ele><r_ele><reb>しょう</reb><re_restr>生</re_restr></r_ele><sense><pos>noun (common) (futsuumeishi)</pos><lsource xml:lang="fre" ls_type="part" ls_wasei="y">vie</lsource><gloss g_type="fig">life<pri>news1</pri></gloss></sense><sense><stagk>生</stagk><stagr>せい</stagr><ant>生</ant><lsource xml:lang="eng"></lsource><gloss g_type="lit">living</gloss><misc>usually written using kana alone</misc></sense></entry>
+  <entry><ent_seq>200</ent_seq><r_ele><reb>かな</reb><re_nokanji/><re_inf>word containing irregular kana usage</re_inf></r_ele><sense><pos>noun (common) (futsuumeishi)</pos><gloss>kana</gloss></sense></entry>
+  <entry><ent_seq>300</ent_seq><k_ele><keb>生きる</keb><ke_inf>ichidan verb</ke_inf></k_ele><r_ele><reb>いきる</reb></r_ele><sense><pos>Ichidan verb</pos><gloss>to live</gloss><xref>生</xref></sense></entry>
+</JMdict>
