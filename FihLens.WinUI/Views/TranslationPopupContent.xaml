@@ -95,7 +95,7 @@
           <StackPanel Spacing="{StaticResource Phase1Space4}">
             <TextBlock Text="{x:Bind ViewModel.OutputLabel, Mode=OneWay}" Style="{StaticResource Phase1CaptionTextStyle}" />
             <TextBlock Text="{x:Bind ViewModel.OutputText, Mode=OneWay}" Style="{StaticResource Phase1TranslationTextStyle}"
-                       Visibility="{x:Bind ViewModel.HasOutput, Mode=OneWay}" AutomationProperties.Name="Current output" />
+                       Visibility="{x:Bind ViewModel.ShowOutputText, Mode=OneWay}" AutomationProperties.Name="Current output" />
             <TextBlock Text="{x:Bind ViewModel.OutputUnavailableReason, Mode=OneWay}"
                        Visibility="{x:Bind ViewModel.HasNoOutput, Mode=OneWay}"
                        Style="{StaticResource Phase1BodyTextStyle}" />
@@ -107,6 +107,10 @@
           </Border>
           <TextBlock Text="{x:Bind ViewModel.SourceLabel, Mode=OneWay}" Style="{StaticResource Phase1CaptionTextStyle}"
                      AutomationProperties.Name="Result source" />
+          <StackPanel Visibility="{x:Bind ViewModel.HasDictionaryCards, Mode=OneWay}" Spacing="8">
+            <TextBlock Text="{x:Bind ViewModel.LocalDictionarySource, Mode=OneWay}" Style="{StaticResource Phase1CaptionTextStyle}" />
+            <views:DictionaryCards Items="{x:Bind ViewModel.DictionaryCards, Mode=OneWay}" AutomationProperties.Name="Local dictionary facts" />
+          </StackPanel>
           <Expander x:Name="SourceDisclosure" Header="Source and notices" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
             <StackPanel Spacing="8">
             <TextBlock Text="{x:Bind ViewModel.SourceDetails, Mode=OneWay}" Style="{StaticResource Phase1BodyTextStyle}"

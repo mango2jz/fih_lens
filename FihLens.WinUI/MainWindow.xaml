@@ -28,6 +28,7 @@
                           IsEnabled="{x:Bind ViewModel.IsEditingEnabled, Mode=OneWay}" AutomationProperties.Name="Target language" />
             </StackPanel>
             <TextBlock Text="{x:Bind ViewModel.LanguagePairUnavailableReason, Mode=OneWay}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
+            <Button Content="Dictionaries" Click="Dictionaries_Click" AccessKey="D" AutomationProperties.Name="Manage local dictionaries" />
         </StackPanel>
 
         <Grid Grid.Row="1" ColumnSpacing="8">
@@ -89,8 +90,7 @@
                 <TextBlock Text="{x:Bind ViewModel.DictionarySourceLabel, Mode=OneWay}" IsTextSelectionEnabled="True" TextWrapping="Wrap" />
                 <TextBlock Text="{x:Bind ViewModel.DictionaryStatusText, Mode=OneWay}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
                 <TextBlock Text="{x:Bind ViewModel.DictionaryErrorMessage, Mode=OneWay}" TextWrapping="Wrap" Foreground="{ThemeResource SystemFillColorCriticalBrush}" AutomationProperties.LiveSetting="Assertive" />
-                <TextBox Text="{x:Bind ViewModel.DictionaryText, Mode=OneWay}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap"
-                         BorderThickness="0" Background="Transparent" AutomationProperties.Name="Dictionary definitions and article sources" />
+                <views:DictionaryCards Items="{x:Bind ViewModel.DictionaryCards, Mode=OneWay}" AutomationProperties.Name="Local dictionary definitions and sources" />
                 <Expander Header="Dictionary source and license" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
                     <TextBox Text="{x:Bind ViewModel.DictionarySourceDetails, Mode=OneWay}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" MaxHeight="260" AutomationProperties.Name="Dictionary attribution, license and full notices" />
                 </Expander>

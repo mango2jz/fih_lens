@@ -1,0 +1,30 @@
+<ContentDialog x:Class="FihLens.WinUI.Views.DictionaryManagementDialog"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:vm="using:FihLens.WinUI.ViewModels"
+    Title="Local dictionaries" CloseButtonText="Skip / Close" DefaultButton="Close">
+  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+    <StackPanel Spacing="12" MaxWidth="560">
+      <TextBlock Text="Install only the dictionary you select. Lookup stays offline; Ask AI sends text only when requested." TextWrapping="Wrap"/>
+      <TextBlock Text="{x:Bind ViewModel.LegacyStatusText, Mode=OneWay}" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
+      <ListView ItemsSource="{x:Bind ViewModel.Packs, Mode=OneWay}" SelectedItem="{x:Bind ViewModel.SelectedPack, Mode=TwoWay}"
+                IsEnabled="{x:Bind ViewModel.IsEditingEnabled, Mode=OneWay}" SelectionMode="Single" AutomationProperties.Name="Available dictionary packs">
+        <ListView.ItemTemplate>
+          <DataTemplate x:DataType="vm:DictionaryPackRowViewModel">
+            <StackPanel Spacing="6" Margin="0,8">
+              <TextBlock Text="{x:Bind Title}" FontWeight="SemiBold" TextWrapping="Wrap"/>
+              <TextBlock Text="{x:Bind Details}" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
+              <TextBlock Text="{x:Bind StatusText}" TextWrapping="Wrap"/>
+            </StackPanel>
+          </DataTemplate>
+        </ListView.ItemTemplate>
+      </ListView>
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <Button Content="Install / Update selected" Command="{x:Bind ViewModel.InstallCommand}"/>
+        <Button Content="Remove selected" Command="{x:Bind ViewModel.RemoveCommand}"/>
+        <Button Content="Cancel" Command="{x:Bind ViewModel.CancelCommand}"/>
+      </StackPanel>
+      <TextBlock Text="{x:Bind ViewModel.StatusText, Mode=OneWay}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
+    </StackPanel>
+  </ScrollViewer>
+</ContentDialog>

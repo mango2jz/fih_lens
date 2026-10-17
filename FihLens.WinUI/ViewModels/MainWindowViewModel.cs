@@ -13,8 +13,7 @@ public partial class MainWindowViewModel : ObservableObject
     private readonly TranslationService? _translationService;
     private readonly string? _providerLabel;
     private readonly string _aiUnavailableReason;
-    private DictionaryLookupService? _dictionaryService;
-    private string _dictionaryUnavailableReason = "Local dictionary unavailable. Install the approved dictionary data, then restart FIH Lens.";
+    private readonly DictionaryLookupRouter _dictionaries = new();
     private CancellationTokenSource? _operationCancellation;
     private long _generation;
     private bool _closed;
@@ -75,6 +74,11 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty]
     public partial DictionaryLookupResult? DictionaryResult { get; set; }
     [ObservableProperty]
+    public partial IReadOnlyList<DictionaryCardViewModel> DictionaryCards { get; set; } = [];
+
+    partial void OnDictionaryResultChanged(DictionaryLookupResult? value) => DictionaryCards =
+        value?.Entries.Select(entry => new DictionaryCardViewModel(entry, Pronunciation)).ToArray() ?? [];
+    [ObservableProperty]
     public partial string DictionaryText { get; set; } = "";
     [ObservableProperty]
     public partial string DictionaryInputSnapshot { get; set; } = "";
@@ -102,31 +106,41 @@ public partial class MainWindowViewModel : ObservableObject
 
     public bool IsEditingEnabled => !_closed && !IsBusy;
     private bool CanStart() => !_closed && !IsBusy && !string.IsNullOrWhiteSpace(InputText) && LanguagePairUnavailableReason is null;
-    private bool CanLookupDictionary() => CanStart() && SourceLanguage == Language.English && TargetLanguage == Language.Vietnamese && _dictionaryService is not null;
+    private bool CanLookupDictionary() => CanStart() && _dictionaries.GetAvailability(SourceLanguage, TargetLanguage).Service is not null;
     private bool CanAskAi() => CanStart() && _translationService is not null;
     private bool CanCancel() => !_closed && IsBusy && _operationCancellation is { IsCancellationRequested: false };
 
     public void SetDictionaryAvailability(DictionaryLookupService? service, DictionarySource? source,
-        string? unavailableReason = null)
+        string? unavailableReason = null) => SetDictionaryAvailability(Language.English, Language.Vietnamese, service, source, unavailableReason);
+
+    public void SetDictionaryAvailability(Language sourceLanguage, Language targetLanguage,
+        DictionaryLookupService? service, DictionarySource? source, string? unavailableReason = null)
     {
         if (_closed) return;
         if (service is not null && source is null) throw new ArgumentNullException(nameof(source));
-        _dictionaryService = service;
-        _dictionaryUnavailableReason = unavailableReason ?? "Local dictionary unavailable. Install the approved dictionary data, then restart FIH Lens.";
+        var previous = _dictionaries.GetAvailability(sourceLanguage, targetLanguage);
+        _dictionaries.SetAvailability(sourceLanguage, targetLanguage, service, source, unavailableReason);
+        if (ReferenceEquals(previous.Service, service) && ReferenceEquals(previous.Source, source) &&
+            previous.Reason == _dictionaries.GetAvailability(sourceLanguage, targetLanguage).Reason) return;
+        if (SourceLanguage != sourceLanguage || TargetLanguage != targetLanguage) return;
+        if (_dictionaryOperation && IsBusy) InvalidateOperation();
+        DictionaryResult = null;
+        DictionaryText = "";
         UpdateDictionaryStatus();
-        DictionarySourceLabel = source is null ? "Local dictionary unavailable"
-            : $"{source.Name} · {source.QualityStatus} · sample review only";
-        DictionarySourceDetails = source is null ? "" :
-            $"Source: {source.Name} ({source.SourceId})\nRevision: {source.Revision}\nLanguages: {source.SourceLanguage} → {source.TargetLanguage}\nQuality: {source.QualityStatus}\nHuman review scope: {source.HumanReviewScope}\nLicense: {source.License}\nSource URL: {source.SourceUrl}\nAttribution: {source.Attribution}\n\n" +
-            string.Join("\n\n", source.Notices.Select(notice => $"{notice.Key}\n{notice.Value}"));
         LookupDictionaryCommand.NotifyCanExecuteChanged();
     }
 
-    private bool IsDictionaryPair => SourceLanguage == Language.English && TargetLanguage == Language.Vietnamese;
-
-    private void UpdateDictionaryStatus() => DictionaryStatusText = !IsDictionaryPair
-        ? "Local dictionary is available for English→Vietnamese only; use Ask AI for this pair."
-        : _dictionaryService is not null ? "Ready · exact whole word or phrase lookup" : _dictionaryUnavailableReason;
+    private void UpdateDictionaryStatus()
+    {
+        var availability = _dictionaries.GetAvailability(SourceLanguage, TargetLanguage);
+        var source = availability.Source;
+        DictionaryStatusText = availability.Service is not null ? "Ready · exact whole word or reading lookup" : availability.Reason;
+        DictionarySourceLabel = source is null ? "Local dictionary unavailable" : $"{source.Name} · {source.QualityStatus}" +
+            (source.QualityStatus.Contains("generated", StringComparison.OrdinalIgnoreCase) ? " · sample review only" : "");
+        DictionarySourceDetails = source is null ? "" :
+            $"Source: {source.Name} ({source.SourceId})\nRevision: {source.Revision}\nLanguages: {source.SourceLanguage} → {source.TargetLanguage}\nQuality: {source.QualityStatus}\nHuman review scope: {source.HumanReviewScope}\nLicense: {source.License}\nSource URL: {source.SourceUrl}\nAttribution: {source.Attribution}\n\n" +
+            string.Join("\n\n", source.Notices.Select(notice => $"{notice.Key}\n{notice.Value}"));
+    }
 
     partial void OnSourceLanguageChanged(Language value) => OnLanguagePairChanged();
     partial void OnTargetLanguageChanged(Language value) => OnLanguagePairChanged();
@@ -196,12 +210,12 @@ public partial class MainWindowViewModel : ObservableObject
         {
             if (dictionary)
             {
-                var result = await _dictionaryService!.LookupAsync(text, cancellation.Token);
+                var result = await _dictionaries.LookupAsync(text, SourceLanguage, TargetLanguage, cancellation.Token);
                 if (!IsCurrent(generation, cancellation.Token)) return;
                 DictionaryResult = result;
-                DictionaryText = string.Join("\n\n", result.Entries.Select(entry =>
-                    $"{entry.Headword}\n{entry.PartOfSpeech}\n{string.Join("\n", entry.Senses)}\n{entry.Example}\nSource: {entry.SourceId}\nArticle: {entry.SourceArticleId}\nOrigin: {entry.SourceOrigin}"));
-                DictionaryStatusText = result.IsMatch ? "Dictionary match" : "No exact dictionary entry for this text.";
+                DictionaryText = string.Join("\n\n", DictionaryCards.Select(card => card.CopyText));
+                DictionaryStatusText = result.IsTruncated ? "More entries available; use a written form to narrow this reading."
+                    : result.IsMatch ? "Dictionary match" : "No exact dictionary entry for this text. Try a dictionary form or use Ask AI.";
             }
             else
             {

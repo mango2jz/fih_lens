@@ -4,6 +4,8 @@ using FihLens.WinUI.Presentation;
 using FihLens.Windows.Capture;
 using FihLens.Windows.Clipboard;
 using FihLens.WinUI.DesignPreview;
+using FihLens.Application.Dictionary;
+using FihLens.Core.Models;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Input;
 using Windows.System;
@@ -22,20 +24,29 @@ public sealed partial class MainWindow : Window
     private readonly Action<MainWindowViewModel> _releaseBackend;
     private readonly Dictionary<Phase1Session, CapturedTranslationSession> _capturePopups = new();
     private readonly List<Task> _draining = new();
+    private readonly IDictionaryPackManager? _dictionaryPacks;
+    private readonly CancellationTokenSource _dictionaryLifetime = new();
+    private DictionaryManagementDialog? _dictionaryDialog;
+    private Task _dictionaryDialogTask = Task.CompletedTask;
+    private DictionarySource? _legacySource;
+    private string? _legacyReason = "Loading existing approved local data.";
     private SelectionOverlayHost? _selectionHost;
     private CapturedTranslationSession? _activeCapture;
     private Task _captureTask = Task.CompletedTask;
     public Task ShutdownCompletion { get; private set; } = Task.CompletedTask;
     public MainWindowViewModel ViewModel { get; }
 
-    public MainWindow(MainWindowViewModel viewModel, Func<MainWindowViewModel> createBackend, Action<MainWindowViewModel> releaseBackend, Action cancelSharedWork, Func<Task> finalizeShutdown)
+    public MainWindow(MainWindowViewModel viewModel, Func<MainWindowViewModel> createBackend, Action<MainWindowViewModel> releaseBackend, Action cancelSharedWork, Func<Task> finalizeShutdown,
+        IDictionaryPackManager? dictionaryPacks = null)
     {
         ViewModel = viewModel ?? throw new ArgumentNullException(nameof(viewModel));
         _cancelSharedWork = cancelSharedWork;
         _finalizeShutdown = finalizeShutdown;
         _createBackend = createBackend;
         _releaseBackend = releaseBackend;
+        _dictionaryPacks = dictionaryPacks;
         InitializeComponent();
+        ((FrameworkElement)Content).Loaded += LauncherLoaded;
         RefreshDisplays();
         Closed += MainWindow_Closed;
         AppWindow.Closing += AppWindow_Closing;
@@ -48,6 +59,56 @@ public sealed partial class MainWindow : Window
         DesignPreviewThemePicker.SelectedIndex = 0;
         DesignPreviewThemePicker.Visibility = Visibility.Visible;
 #endif
+    }
+
+    public void SetLegacyDictionarySource(DictionarySource? source, string? reason)
+    {
+        _legacySource = source;
+        _legacyReason = reason;
+        _dictionaryDialog?.ViewModel.SetLegacySource(source, reason);
+    }
+
+    private void LauncherLoaded(object sender, RoutedEventArgs args)
+    {
+        ((FrameworkElement)Content).Loaded -= LauncherLoaded;
+        if (!_closing) _dictionaryDialogTask = OfferDictionarySetupAsync();
+    }
+
+    private async Task OfferDictionarySetupAsync()
+    {
+        try
+        {
+            if (_dictionaryPacks is not null && !await _dictionaryPacks.GetSetupDismissedAsync(_dictionaryLifetime.Token) && !_closing)
+                await ShowDictionariesAsync();
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException)
+        { if (!_closing) CaptureStatus.Text = "Dictionary setup could not open. The app remains usable; open Dictionaries to retry."; }
+    }
+
+    private void Dictionaries_Click(object sender, RoutedEventArgs args)
+    {
+        if (!_closing && _dictionaryDialogTask.IsCompleted) _dictionaryDialogTask = ShowDictionariesAsync();
+    }
+
+    private async Task ShowDictionariesAsync()
+    {
+        var model = new DictionaryManagementViewModel(_dictionaryPacks);
+        model.SetLegacySource(_legacySource, _legacyReason);
+        var dialog = new DictionaryManagementDialog(model) { XamlRoot = ((FrameworkElement)Content).XamlRoot };
+        _dictionaryDialog = dialog;
+        try
+        {
+            await model.LoadAsync();
+            if (!_closing) await dialog.ShowAsync();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException)
+        { if (!_closing) CaptureStatus.Text = "Dictionary management could not open. Try again when ready."; }
+        finally
+        {
+            await model.CloseAsync();
+            if (ReferenceEquals(_dictionaryDialog, dialog)) _dictionaryDialog = null;
+        }
     }
 
     private void RefreshDisplays()
@@ -304,6 +365,13 @@ public sealed partial class MainWindow : Window
         try
         {
             Attempt(_cancelSharedWork);
+            Attempt(_dictionaryLifetime.Cancel);
+            if (_dictionaryDialog is { } dialog)
+            {
+                Attempt(dialog.Hide);
+                _draining.Add(dialog.ViewModel.CloseAsync());
+            }
+            _draining.Add(_dictionaryDialogTask);
             TrackBackendWork(ViewModel);
             Attempt(ViewModel.Close);
             if (_activeCapture is { } active) Attempt(active.Dispose);
@@ -355,5 +423,6 @@ public sealed partial class MainWindow : Window
     {
         AppWindow.Closing -= AppWindow_Closing;
         Closed -= MainWindow_Closed;
+        _dictionaryLifetime.Dispose();
     }
 }

@@ -75,10 +75,10 @@ public sealed class MainWindowViewModelTests
         provider.Completion.SetResult(Result("stale"));
         await operation.WaitAsync(TimeSpan.FromSeconds(2));
         Assert.Null(viewModel.Result);
-        Assert.Contains("English→Vietnamese only", viewModel.DictionaryStatusText);
+        Assert.Contains("No local dictionary for this direction", viewModel.DictionaryStatusText);
         viewModel.SetDictionaryAvailability(null, null, "late load failure");
         Assert.False(viewModel.LookupDictionaryCommand.CanExecute(null));
-        Assert.Contains("English→Vietnamese only", viewModel.DictionaryStatusText);
+        Assert.Contains("No local dictionary for this direction", viewModel.DictionaryStatusText);
         viewModel.TargetLanguage = Language.Vietnamese;
         Assert.Equal("late load failure", viewModel.DictionaryStatusText);
         Assert.False(viewModel.LookupDictionaryCommand.CanExecute(null));

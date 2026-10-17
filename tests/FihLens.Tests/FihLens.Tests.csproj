@@ -8,6 +8,8 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Include="..\..\FihLens.WinUI\ViewModels\DictionaryCardViewModel.cs" Link="WinUI\DictionaryCardViewModel.cs" />
+    <Compile Include="..\..\FihLens.WinUI\ViewModels\DictionaryManagementViewModel.cs" Link="WinUI\DictionaryManagementViewModel.cs" />
     <Compile Include="..\..\src\FihLens.Windows\Capture\CaptureValidation.cs" Link="Windows\CaptureValidation.cs" />
     <Compile Include="..\..\FihLens.WinUI\Presentation\CapturedTranslationSession.cs" Link="WinUI\CapturedTranslationSession.cs" />
     <PackageReference Include="coverlet.collector" Version="6.0.4" />

@@ -68,6 +68,46 @@ public sealed class CapturedTranslationSessionTests
     }
 
     [Fact]
+    public async Task JapaneseCaptureUsesLateJapanesePackAndRetainsLocalCardsAfterExplicitAi()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "FihLens-ja-capture-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var pack = FihLens.Tests.Infrastructure.JapanesePackFixture.Create(root);
+            await using var lookup = await FihLens.Infrastructure.Dictionary.IndexedJapaneseDictionaryLookup.LoadAsync(pack.Directory, pack.Definition);
+            var provider = new Provider();
+            var backend = new MainWindowViewModel(new TranslationService(provider), "Fake")
+                { SourceLanguage = Language.Japanese, TargetLanguage = Language.English };
+            var clipboard = new Clipboard();
+            using var session = NewSession(new Capture(RegionTextCaptureResult.Success("せい")), backend, clipboard);
+            session.Confirm(new RegionTextCaptureRequest(Request.Source, Request.Crop, Language.Japanese));
+            await session.OverlayRetiredAsync();
+            backend.SetDictionaryAvailability(Language.Japanese, Language.English, new DictionaryLookupService(lookup), lookup.Source);
+            await session.LocalLookupCompletion;
+            Assert.Equal(2, session.Popup.DictionaryCards.Count);
+            Assert.Equal(Language.Japanese, session.Popup.SourceLanguage);
+            Assert.Equal(0, provider.Calls);
+            session.Popup.AskAiCommand.Execute(null);
+            await backend.AskAiCommand.ExecutionTask!;
+            Assert.Equal(1, provider.Calls);
+            Assert.Equal(2, session.Popup.DictionaryCards.Count);
+            Assert.Contains("meaning-1", session.Popup.DictionaryCards[0].SensesText);
+            Assert.Contains("figurative", session.Popup.DictionaryCards[0].SensesText);
+            Assert.Contains("often kana", session.Popup.DictionaryCards[0].WrittenFormsText);
+            Assert.Contains("figurative", session.Popup.DictionaryCards[0].CopyText);
+            Assert.Contains("language: fre, type: part, wasei: y]: vie", session.Popup.DictionaryCards[0].SensesText);
+            Assert.Contains("(source term omitted)", session.Popup.DictionaryCards[0].SensesText);
+            Assert.Contains("Antonym references: 反対語・1", session.Popup.DictionaryCards[0].CopyText);
+            Assert.DoesNotContain("sample review only", backend.DictionarySourceLabel);
+            await session.Popup.CopyCommand.ExecuteAsync(null);
+            Assert.Contains("actual output", clipboard.Text);
+            Assert.Contains("meaning-1", clipboard.Text);
+            Assert.Contains($"License: {lookup.Source.License}", clipboard.Text);
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
+    [Fact]
     public async Task JapaneseCaptureKeepsSourceAndSkipsEnglishVietnameseDictionary()
     {
         var provider = new Provider();

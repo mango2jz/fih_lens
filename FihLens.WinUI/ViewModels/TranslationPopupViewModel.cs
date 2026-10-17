@@ -2,6 +2,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using FihLens.Core.Models;
 using FihLens.Application.Clipboard;
+using FihLens.Application.Dictionary;
 using FihLens.Core.Enums;
 using System.Windows.Input;
 
@@ -30,6 +31,8 @@ public sealed class TranslationPopupViewModel : ObservableObject
     private string _aiSendNotice = "AI unavailable: no configured provider command.";
     private PopupPreviewState _previewState;
     private IReadOnlyList<VocabularyItem> _vocabulary = [];
+    private DictionaryLookupResult? _dictionaryResult;
+    private bool _dictionaryOnly;
 
     public Language SourceLanguage { get; private set; } = Language.English;
     public Language TargetLanguage { get; private set; } = Language.Vietnamese;
@@ -37,6 +40,10 @@ public sealed class TranslationPopupViewModel : ObservableObject
     public string LanguagePairLabel => $"{SourceLanguage} → {TargetLanguage}";
     public PronunciationViewModel Pronunciation { get; private set; } = new();
     public IReadOnlyList<VocabularyCardViewModel> WordCards { get; private set; } = [];
+    public IReadOnlyList<DictionaryCardViewModel> DictionaryCards { get; private set; } = [];
+    public bool HasDictionaryCards => DictionaryCards.Count > 0;
+    public bool ShowOutputText => HasOutput && !_dictionaryOnly;
+    public string LocalDictionarySource => _dictionaryResult is { } result ? $"Local dictionary · {result.Source.Name} · {result.Source.QualityStatus}" : "";
 
     public void BindPronunciation(PronunciationViewModel pronunciation, Language source, Language target)
     {
@@ -46,7 +53,8 @@ public sealed class TranslationPopupViewModel : ObservableObject
         TargetLanguage = target;
         Pronunciation.SetSource(OriginalText, source);
         WordCards = _vocabulary.Select(item => new VocabularyCardViewModel(item, Pronunciation)).ToArray();
-        foreach (string property in new[] { nameof(Pronunciation), nameof(WordCards), nameof(InputLabel), nameof(LanguagePairLabel) })
+        DictionaryCards = _dictionaryResult?.Entries.Select(entry => new DictionaryCardViewModel(entry, Pronunciation)).ToArray() ?? [];
+        foreach (string property in new[] { nameof(Pronunciation), nameof(WordCards), nameof(InputLabel), nameof(LanguagePairLabel), nameof(DictionaryCards), nameof(HasDictionaryCards), nameof(ShowOutputText), nameof(LocalDictionarySource) })
             OnPropertyChanged(property);
     }
 
@@ -232,6 +240,8 @@ public sealed class TranslationPopupViewModel : ObservableObject
             : backend.DictionaryResult is { } dictionary ? FromDictionary(dictionary) :
                 ForInput(backend.InputText, backend.SourceLanguage, backend.TargetLanguage);
         ApplySnapshot(snapshot);
+        _dictionaryResult = backend.DictionaryResult;
+        BindPronunciation(Pronunciation, snapshot.SourceLanguage, snapshot.TargetLanguage);
         if (backend.Result is not null)
         {
             SourceLabel = backend.AiSourceLabel;
@@ -266,6 +276,8 @@ public sealed class TranslationPopupViewModel : ObservableObject
         SourceDetails = snapshot.SourceDetails;
         VocabularyText = snapshot.VocabularyText;
         _vocabulary = snapshot._vocabulary;
+        _dictionaryResult = snapshot._dictionaryResult;
+        _dictionaryOnly = snapshot._dictionaryOnly;
         BindPronunciation(Pronunciation, snapshot.SourceLanguage, snapshot.TargetLanguage);
         ExpandedTitle = snapshot.ExpandedTitle;
         ExpandedText = snapshot.ExpandedText;
@@ -307,7 +319,11 @@ public sealed class TranslationPopupViewModel : ObservableObject
         NotifyState();
         try
         {
-            await _clipboard.WriteTextAsync(OutputText, cancellation.Token);
+            string copyText = _dictionaryOnly ? string.Join("\n\n", DictionaryCards.Select(card => card.CopyText))
+                : OutputText + (HasDictionaryCards ? "\n\nLocal dictionary\n" + string.Join("\n\n", DictionaryCards.Select(card => card.CopyText)) : "");
+            if (HasDictionaryCards && _dictionaryResult is { Source: var source })
+                copyText += $"\n\nDictionary: {source.Name}\nSource URL: {source.SourceUrl}\nLicense: {source.License}\nRevision: {source.Revision}";
+            await _clipboard.WriteTextAsync(copyText, cancellation.Token);
             if (!IsClosed && generation == _copyGeneration && !cancellation.IsCancellationRequested)
                 _copyFeedback = IsPreview ? "Preview: copied (simulated)." : "Copied.";
         }
@@ -440,10 +456,15 @@ public sealed class TranslationPopupViewModel : ObservableObject
         string details =
             $"Source: {source.Name} ({source.SourceId})\nRevision: {source.Revision}\nLanguages: {source.SourceLanguage} → {source.TargetLanguage}\nQuality: {source.QualityStatus}\nHuman review scope: {source.HumanReviewScope}\nLicense: {source.License}\nSource URL: {source.SourceUrl}\nAttribution: {source.Attribution}\n\n" +
             string.Join("\n\n", source.Notices.Select(notice => $"{notice.Key}\n{notice.Value}"));
-        return new TranslationPopupViewModel(result.OriginalText, output, "Dictionary definitions",
-            $"{source.Name} · {source.QualityStatus} · sample review only", details, "",
+        var popup = new TranslationPopupViewModel(result.OriginalText, output, "Dictionary definitions",
+            $"{source.Name} · {source.QualityStatus}", details, "",
             "No exact dictionary entry for this text.", "Dictionary senses and source",
             string.Join("\n\n", new[] { output, details }.Where(value => !string.IsNullOrWhiteSpace(value))), false);
+        popup._dictionaryResult = result;
+        popup._dictionaryOnly = true;
+        popup.BindPronunciation(popup.Pronunciation, DictionaryLookupRouter.ParseLanguage(source.SourceLanguage),
+            DictionaryLookupRouter.ParseLanguage(source.TargetLanguage));
+        return popup;
     }
 
     private static string Section(string title, string? text) =>
