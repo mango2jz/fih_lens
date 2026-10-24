@@ -30,6 +30,7 @@ public partial class DictionaryManagementViewModel : ObservableObject
     private readonly IDictionaryPackManager? _manager;
     private CancellationTokenSource? _operation;
     private Task _work = Task.CompletedTask;
+    private Task? _closeTask;
     private bool _closed;
 
     public DictionaryManagementViewModel(IDictionaryPackManager? manager)
@@ -133,9 +134,10 @@ public partial class DictionaryManagementViewModel : ObservableObject
         if (!_closed) StatusText = "Removal scheduled — restart FIH Lens. Other dictionaries and saved data are preserved.";
     }
 
-    public async Task CloseAsync()
+    public Task CloseAsync() => _closeTask ??= CloseCoreAsync();
+
+    private async Task CloseCoreAsync()
     {
-        if (_closed) { await _work; return; }
         _closed = true;
         _operation?.Cancel();
         await _work;
