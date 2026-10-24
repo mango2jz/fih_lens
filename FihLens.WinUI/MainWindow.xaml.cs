@@ -1,14 +1,20 @@
 using FihLens.WinUI.ViewModels;
 using FihLens.WinUI.Views;
 using FihLens.WinUI.Presentation;
+using FihLens.Application.Capture;
 using FihLens.Windows.Capture;
+using FihLens.Windows.Windowing;
 using FihLens.Windows.Clipboard;
 using FihLens.WinUI.DesignPreview;
 using FihLens.Application.Dictionary;
 using FihLens.Core.Models;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Windowing;
 using Windows.System;
+using System.ComponentModel;
+using NativeBackgroundShell = FihLens.Windows.Shell.WindowsBackgroundShell;
+using NativeShellCommand = FihLens.Windows.Shell.BackgroundShellCommand;
 
 namespace FihLens.WinUI;
 
@@ -25,6 +31,7 @@ public sealed partial class MainWindow : Window
     private readonly Dictionary<Phase1Session, CapturedTranslationSession> _capturePopups = new();
     private readonly List<Task> _draining = new();
     private readonly IDictionaryPackManager? _dictionaryPacks;
+    private readonly WindowsSelectedTextCapture? _selectedTextCapture;
     private readonly CancellationTokenSource _dictionaryLifetime = new();
     private DictionaryManagementDialog? _dictionaryDialog;
     private Task _dictionaryDialogTask = Task.CompletedTask;
@@ -32,12 +39,16 @@ public sealed partial class MainWindow : Window
     private string? _legacyReason = "Loading existing approved local data.";
     private SelectionOverlayHost? _selectionHost;
     private CapturedTranslationSession? _activeCapture;
+    private SelectedTextCaptureSession? _activeSelectedCapture;
     private Task _captureTask = Task.CompletedTask;
+    private readonly BackgroundShellController _shellController;
+    private NativeBackgroundShell? _shell;
+    private bool _hiddenToTray;
     public Task ShutdownCompletion { get; private set; } = Task.CompletedTask;
     public MainWindowViewModel ViewModel { get; }
 
     public MainWindow(MainWindowViewModel viewModel, Func<MainWindowViewModel> createBackend, Action<MainWindowViewModel> releaseBackend, Action cancelSharedWork, Func<Task> finalizeShutdown,
-        IDictionaryPackManager? dictionaryPacks = null)
+        IDictionaryPackManager? dictionaryPacks = null, WindowsSelectedTextCapture? selectedTextCapture = null)
     {
         ViewModel = viewModel ?? throw new ArgumentNullException(nameof(viewModel));
         _cancelSharedWork = cancelSharedWork;
@@ -45,11 +56,14 @@ public sealed partial class MainWindow : Window
         _createBackend = createBackend;
         _releaseBackend = releaseBackend;
         _dictionaryPacks = dictionaryPacks;
+        _selectedTextCapture = selectedTextCapture;
+        _shellController = new(ShowLauncher, RequestRegionCapture, BeginExit);
         InitializeComponent();
         ((FrameworkElement)Content).Loaded += LauncherLoaded;
         RefreshDisplays();
         Closed += MainWindow_Closed;
         AppWindow.Closing += AppWindow_Closing;
+        ViewModel.PropertyChanged += LauncherBackendChanged;
 #if DEBUG
         DesignPreviewButton.Visibility = Visibility.Visible;
         DesignPreviewStatePicker.ItemsSource = Enum.GetValues<PopupPreviewState>();
@@ -66,6 +80,287 @@ public sealed partial class MainWindow : Window
         _legacySource = source;
         _legacyReason = reason;
         _dictionaryDialog?.ViewModel.SetLegacySource(source, reason);
+    }
+
+    public void AttachShell(NativeBackgroundShell shell)
+    {
+        _shell = shell ?? throw new ArgumentNullException(nameof(shell));
+        shell.CommandRequested += Shell_CommandRequested;
+        shell.SelectedTextRequested += Shell_SelectedTextRequested;
+        shell.StateChanged += Shell_StateChanged;
+        shell.Initialize();
+        PublishShellState();
+    }
+
+    public void SetShellUnavailable(int? errorCode)
+    {
+        _shellController.SetAvailability(false, errorCode, false, errorCode);
+        ShellStatus.Text = "The background shell could not start. Keep this window open or use Exit to quit.";
+        RetryHotkeyButton.IsEnabled = false;
+        RetryShellButton.IsEnabled = false;
+    }
+
+    public void ReopenFromActivation() => _shellController.Execute(ShellCommand.Open);
+
+    private void Shell_CommandRequested(NativeShellCommand command)
+    {
+        if (!DispatcherQueue.TryEnqueue(() =>
+        {
+            try
+            {
+                var action = command switch
+                {
+                    NativeShellCommand.Open => ShellCommand.Open,
+                    NativeShellCommand.Capture => ShellCommand.Capture,
+                    _ => ShellCommand.Exit
+                };
+                var outcome = _shellController.Execute(action);
+                if (action == ShellCommand.Capture)
+                {
+                    if (outcome == RegionCaptureRequestOutcome.Busy && _selectionHost is null)
+                        ShowLauncher();
+                    if (outcome != RegionCaptureRequestOutcome.Busy || _selectionHost is null)
+                        ShowCaptureRequestResult(outcome ?? RegionCaptureRequestOutcome.Stopping);
+                }
+            }
+            catch (Exception exception) { ReportShutdownFailure(exception); }
+        }))
+            System.Diagnostics.Debug.WriteLine("Background shell command was dropped because the UI dispatcher is stopping.");
+    }
+
+    private void Shell_SelectedTextRequested(SelectedTextSource source)
+    {
+        if (!DispatcherQueue.TryEnqueue(() => StartSelectedTextCapture(source)))
+            System.Diagnostics.Debug.WriteLine("Selected-text invocation was dropped because the UI dispatcher is stopping.");
+    }
+
+    private void Shell_StateChanged(object? sender, EventArgs args)
+    {
+        if (!DispatcherQueue.TryEnqueue(PublishShellState))
+            System.Diagnostics.Debug.WriteLine("Background shell state update was dropped because the UI dispatcher is stopping.");
+    }
+
+    private void PublishShellState()
+    {
+        if (_shell is null) return;
+        _shellController.SetAvailability(_shell.IsHotkeyRegistered, _shell.HotkeyErrorCode,
+            _shell.IsTrayAvailable, _shell.TrayErrorCode);
+        if ((!_shell.IsTrayAvailable || _shell.TrayErrorCode is not null) && _hiddenToTray) ShowLauncher();
+        if (_shellController.IsStopping)
+        {
+            ShellStatus.Text = _shellController.ExitFailed
+                ? "FIH Lens could not finish closing. Use Exit or Close to retry cleanup."
+                : "FIH Lens is closing. New captures are unavailable.";
+        }
+        else
+        {
+            var failures = new List<string>();
+            if (!_shell.IsTrayAvailable || _shell.TrayErrorCode is not null)
+                failures.Add($"Tray shell needs attention (Windows error {_shell.TrayErrorCode?.ToString() ?? "unknown"}). FIH Lens stays visible; Retry shell to try again.");
+            if (!_shell.IsHotkeyRegistered)
+                failures.Add(_shell.HotkeyErrorCode == 1409
+                    ? $"{NativeBackgroundShell.HotkeyLabel} is already in use. Selected-text capture is unavailable; select a screen region here or from the tray. Retry hotkey when it is free."
+                    : $"{NativeBackgroundShell.HotkeyLabel} could not be registered (Windows error {_shell.HotkeyErrorCode?.ToString() ?? "unknown"}). Select a screen region here or from the tray; Retry hotkey.");
+            ShellStatus.Text = failures.Count == 0
+                ? $"{NativeBackgroundShell.HotkeyLabel} captures selected text. Select a screen region here or from the tray. Close hides FIH Lens while the tray icon is available; use Exit to quit."
+                : string.Join(" ", failures);
+        }
+        RetryHotkeyButton.IsEnabled = !_shell.IsHotkeyRegistered && !_shellController.IsStopping;
+        RetryShellButton.IsEnabled = (!_shell.IsHotkeyRegistered || !_shell.IsTrayAvailable ||
+            _shell.HotkeyErrorCode is not null || _shell.TrayErrorCode is not null) && !_shellController.IsStopping;
+    }
+
+    private void ShowLauncher()
+    {
+        InvalidateSelectedCapture();
+        if (_shellController.IsStopping)
+            ShellStatus.Text = _shellController.ExitFailed
+                ? "FIH Lens could not finish closing. Use Exit or Close to retry cleanup."
+                : "FIH Lens is closing. New captures are unavailable.";
+        _hiddenToTray = false;
+        if (AppWindow.Presenter is OverlappedPresenter presenter && presenter.State == OverlappedPresenterState.Minimized)
+            presenter.Restore();
+        AppWindow.Show();
+        Activate();
+    }
+
+    private void StartSelectedTextCapture(SelectedTextSource source)
+    {
+        if (_closing || _shellController.IsStopping || _selectedTextCapture is not { } owner || owner.IsBusy) return;
+        if (_activeSelectedCapture is { } active && !active.IsOffered) return;
+        if (_activeCapture is not null || _selectionHost is not null || !_dictionaryDialogTask.IsCompleted) return;
+        InvalidateSelectedCapture();
+        if (ViewModel.LanguagePairUnavailableReason is { } pairReason)
+        {
+            ShowLauncher();
+            CaptureStatus.Text = pairReason;
+            return;
+        }
+
+        var lease = owner.CreateSource(source);
+        SelectedTextCaptureSession? session = null;
+        session = new SelectedTextCaptureSession(lease, () => lease.DrainCompletion, PublishOnUiAsync,
+            () => lease.ValidateForCommit(out var outcome) ? null : outcome,
+            () => lease.ValidateForOffer(out var outcome) ? null : outcome,
+            text => CommitSelectedText(session!, source, text),
+            outcome => OfferSelectedRegion(session!, outcome),
+            ReportSelectedCaptureFailure);
+        _activeSelectedCapture = session;
+        CancelCaptureButton.IsEnabled = true;
+        CaptureStatus.Text = "Reading selected text from the active application…";
+        session.Start();
+        _draining.Add(ObserveSelectedCaptureAsync(session));
+    }
+
+    private async Task ObserveSelectedCaptureAsync(SelectedTextCaptureSession session)
+    {
+        try { await session.Completion; }
+        catch (Exception exception)
+        {
+            System.Diagnostics.Debug.WriteLine($"Selected capture stage=publication exceptionType={exception.GetType().FullName} hresult=0x{exception.HResult:X8}");
+        }
+
+        if (!ReferenceEquals(_activeSelectedCapture, session) || session.IsOffered || session.IsCommitted) return;
+        _activeSelectedCapture = null;
+        session.Dispose();
+        CancelCaptureButton.IsEnabled = false;
+        if (!_closing && session.Outcome == SelectedTextCaptureOutcome.SourceChanged)
+        {
+            CaptureStatus.Text = "The source selection changed. Invoke capture again with the text selected.";
+        }
+    }
+
+    private void CommitSelectedText(SelectedTextCaptureSession attempt, SelectedTextSource source, string text)
+    {
+        if (_closing || !ReferenceEquals(_activeSelectedCapture, attempt) || attempt.IsClosed) return;
+        var backend = _createBackend();
+        CapturedTranslationSession? session = null;
+        Phase1Session? popup = null;
+        bool popupOwnsBackend = false;
+        try
+        {
+            backend.SourceLanguage = ViewModel.SourceLanguage;
+            backend.TargetLanguage = ViewModel.TargetLanguage;
+            session = new CapturedTranslationSession(backend, new WindowsClipboardWriter());
+            if (!session.AdoptInput(text)) throw new InvalidOperationException("Selected input was not accepted.");
+            popup = new Phase1Session(session.Popup, AppWindow, source.Origin);
+            _capturePopups.Add(popup, session);
+            popupOwnsBackend = true;
+            popup.Closed += CapturePopupClosed;
+            popup.Failed += CapturePopupFailed;
+            popup.Show();
+            if (_capturePopups.ContainsValue(session)) session.PopupShown();
+            CaptureStatus.Text = "Selected text is ready. Ask AI sends only this text when you choose it.";
+        }
+        catch
+        {
+            if (session is not null && !popupOwnsBackend)
+            {
+                session.Dispose();
+                _releaseBackend(backend);
+            }
+            else if (popup is not null && _capturePopups.ContainsKey(popup))
+            {
+                try { popup.Dispose(); }
+                catch (Exception exception)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Selected capture stage=popup-close exceptionType={exception.GetType().FullName} hresult=0x{exception.HResult:X8}");
+                }
+            }
+            _activeSelectedCapture = null;
+            attempt.Dispose();
+            throw;
+        }
+        finally
+        {
+            if (!popupOwnsBackend && session is null) _releaseBackend(backend);
+        }
+
+        _activeSelectedCapture = null;
+        CancelCaptureButton.IsEnabled = false;
+        attempt.Dispose();
+    }
+
+    private void OfferSelectedRegion(SelectedTextCaptureSession attempt, SelectedTextCaptureOutcome outcome)
+    {
+        if (_closing || !ReferenceEquals(_activeSelectedCapture, attempt) || attempt.IsClosed) return;
+        CaptureStatus.Text = $"{SelectedCaptureMessage(outcome)} Select a screen region or cancel.";
+        SelectRegionButton.IsEnabled = true;
+        CancelCaptureButton.IsEnabled = true;
+        _hiddenToTray = false;
+        if (AppWindow.Presenter is OverlappedPresenter presenter && presenter.State == OverlappedPresenterState.Minimized)
+            presenter.Restore();
+        AppWindow.Show();
+        Activate();
+    }
+
+    private void ReportSelectedCaptureFailure(SelectedTextCaptureOutcome outcome)
+    {
+        if (_closing) return;
+        if (outcome == SelectedTextCaptureOutcome.SourceChanged)
+        {
+            CaptureStatus.Text = SelectedCaptureMessage(outcome);
+            return;
+        }
+        ShowLauncher();
+        CaptureStatus.Text = SelectedCaptureMessage(outcome);
+    }
+
+    private static string SelectedCaptureMessage(SelectedTextCaptureOutcome outcome) => outcome switch
+    {
+        SelectedTextCaptureOutcome.Sensitive => "The selected control is marked sensitive. FIH Lens did not read it.",
+        SelectedTextCaptureOutcome.SourceChanged => "The source selection changed. Invoke capture again with the text selected.",
+        SelectedTextCaptureOutcome.Timeout => "Selected-text capture timed out.",
+        SelectedTextCaptureOutcome.Unavailable => "Selected text is unavailable from this control.",
+        SelectedTextCaptureOutcome.Unsupported => "This control does not provide selected text.",
+        SelectedTextCaptureOutcome.NoText => "No selected text was found.",
+        SelectedTextCaptureOutcome.Denied => "Windows denied access to the selected text.",
+        SelectedTextCaptureOutcome.MultipleRanges => "This control has multiple selected ranges.",
+        SelectedTextCaptureOutcome.TooLarge => "The selection is too large to capture.",
+        _ => "Selected-text capture failed safely."
+    };
+
+    private void InvalidateSelectedCapture()
+    {
+        if (_activeSelectedCapture is not { } active) return;
+        _activeSelectedCapture = null;
+        active.Dispose();
+        SelectRegionButton.IsEnabled = true;
+        CancelCaptureButton.IsEnabled = false;
+    }
+
+    private void LauncherBackendChanged(object? sender, PropertyChangedEventArgs args)
+    {
+        if (args.PropertyName is nameof(MainWindowViewModel.SourceLanguage) or nameof(MainWindowViewModel.TargetLanguage))
+            InvalidateSelectedCapture();
+    }
+
+    private void RetryHotkey_Click(object sender, RoutedEventArgs args)
+    {
+        if (!_shellController.IsStopping) _shell?.RetryHotkey();
+        PublishShellState();
+    }
+
+    private void RetryShell_Click(object sender, RoutedEventArgs args)
+    {
+        _shellController.RetryShell(() => _shell?.RetryHotkey(), () => _shell?.RetryTray());
+        PublishShellState();
+    }
+
+    private void Exit_Click(object sender, RoutedEventArgs args) => _shellController.Execute(ShellCommand.Exit);
+
+    private void BeginExit()
+    {
+        SelectRegionButton.IsEnabled = false;
+        RetryHotkeyButton.IsEnabled = false;
+        RetryShellButton.IsEnabled = false;
+        SingleInstanceActivation.BeginShutdown();
+        try { _shell?.BeginShutdown(); }
+        catch (Exception exception) { ReportShutdownFailure(exception); }
+        ShowLauncher();
+        if (_shutdownInProgress) return;
+        _shutdownInProgress = true;
+        ShutdownCompletion = ShutdownAndCloseAsync();
     }
 
     private void LauncherLoaded(object sender, RoutedEventArgs args)
@@ -88,7 +383,9 @@ public sealed partial class MainWindow : Window
 
     private void Dictionaries_Click(object sender, RoutedEventArgs args)
     {
-        if (!_closing && _dictionaryDialogTask.IsCompleted) _dictionaryDialogTask = ShowDictionariesAsync();
+        if (_closing || !_dictionaryDialogTask.IsCompleted) return;
+        InvalidateSelectedCapture();
+        _dictionaryDialogTask = ShowDictionariesAsync();
     }
 
     private async Task ShowDictionariesAsync()
@@ -126,17 +423,36 @@ public sealed partial class MainWindow : Window
 
     private void SelectRegion_Click(object sender, RoutedEventArgs e)
     {
-        if (_closing || _activeCapture is not null || _selectionHost is not null) return;
+        ShowCaptureRequestResult(_shellController.Execute(ShellCommand.Capture) ?? RegionCaptureRequestOutcome.Stopping);
+    }
+
+    private RegionCaptureRequestOutcome RequestRegionCapture()
+    {
+        InvalidateSelectedCapture();
+        if (_closing || _shellController.IsStopping) return RegionCaptureRequestOutcome.Stopping;
+        if (_activeCapture is not null || _selectionHost is not null) return RegionCaptureRequestOutcome.Busy;
+        if (!_dictionaryDialogTask.IsCompleted)
+        {
+            ShowLauncher();
+            CaptureStatus.Text = "Finish or close Dictionaries, then try again.";
+            return RegionCaptureRequestOutcome.ModalBlocked;
+        }
         if (ViewModel.LanguagePairUnavailableReason is { } pairReason)
         {
+            ShowLauncher();
             CaptureStatus.Text = pairReason;
-            return;
+            return RegionCaptureRequestOutcome.Unavailable;
         }
         var selected = CaptureDisplayPicker.SelectedItem as CaptureDisplay;
         RefreshDisplays();
         if (CaptureDisplayPicker.ItemsSource is IReadOnlyList<CaptureDisplay> displays && selected is not null)
             CaptureDisplayPicker.SelectedItem = displays.FirstOrDefault(display => display.Source.SourceId == selected.Source.SourceId) ?? displays.FirstOrDefault();
-        if (CaptureDisplayPicker.SelectedItem is not CaptureDisplay display) return;
+        if (CaptureDisplayPicker.SelectedItem is not CaptureDisplay display)
+        {
+            ShowLauncher();
+            CaptureStatus.Text = "No display is available for capture. Choose a display and try again.";
+            return RegionCaptureRequestOutcome.Unavailable;
+        }
         var backend = _createBackend();
         backend.SourceLanguage = ViewModel.SourceLanguage;
         backend.TargetLanguage = ViewModel.TargetLanguage;
@@ -152,13 +468,24 @@ public sealed partial class MainWindow : Window
             CancelCaptureButton.IsEnabled = true;
             CaptureStatus.Text = "Select a region on the chosen display. Enter confirms; Escape cancels.";
             _selectionHost.Show();
+            return RegionCaptureRequestOutcome.Started;
         }
         catch (Exception)
         {
-            CancelCapture_Click(sender, e);
+            CancelRegionCapture();
+            ShowLauncher();
             CaptureStatus.Text = "Screen selection could not open. Try again.";
             if (_activeCapture is null) _releaseBackend(backend);
+            return RegionCaptureRequestOutcome.Unavailable;
         }
+    }
+
+    private void ShowCaptureRequestResult(RegionCaptureRequestOutcome outcome)
+    {
+        if (outcome == RegionCaptureRequestOutcome.Busy)
+            CaptureStatus.Text = "A capture is already in progress. Finish or cancel it before starting another.";
+        else if (outcome == RegionCaptureRequestOutcome.Stopping)
+            CaptureStatus.Text = "FIH Lens is closing. Capture is unavailable.";
     }
 
     private Task<bool> PublishOnUiAsync(Action action)
@@ -191,7 +518,7 @@ public sealed partial class MainWindow : Window
         host.Failed -= SelectionFailed;
         _selectionHost = null;
         if (_activeCapture is not { } session) return;
-        if (!_closing && session.Capture.Request is not null && !session.Capture.IsCanceled)
+        if (!_closing && session.Capture is { Request: not null, IsCanceled: false })
             _captureTask = CompleteCaptureAsync(session);
         else FinishCapture(session, "Selection canceled.");
     }
@@ -208,12 +535,13 @@ public sealed partial class MainWindow : Window
         try
         {
             await session.OverlayRetiredAsync();
-            if (_closing || session.Capture.IsCanceled) return;
+            if (_closing || session.Capture!.IsCanceled) return;
             var popup = new Phase1Session(session.Popup, AppWindow);
             _capturePopups.Add(popup, session);
             popup.Closed += CapturePopupClosed;
             popup.Failed += CapturePopupFailed;
             popup.Show();
+            if (_capturePopups.ContainsValue(session)) session.PopupShown();
             CaptureStatus.Text = "Capture finished. The popup shows local lookup; Ask AI sends only its recognized text.";
         }
         catch (Exception)
@@ -234,7 +562,7 @@ public sealed partial class MainWindow : Window
             {
                 SelectRegionButton.IsEnabled = true;
                 CancelCaptureButton.IsEnabled = false;
-                if (session.Capture.IsCanceled) CaptureStatus.Text = "Capture canceled. Native work has finished.";
+                if (session.Capture?.IsCanceled == true) CaptureStatus.Text = "Capture canceled. Native work has finished.";
             }
         }
     }
@@ -252,12 +580,23 @@ public sealed partial class MainWindow : Window
 
     private void CancelCapture_Click(object sender, RoutedEventArgs e)
     {
+        if (_activeSelectedCapture is not null)
+        {
+            InvalidateSelectedCapture();
+            CaptureStatus.Text = "No screen capture was started.";
+            return;
+        }
+        CancelRegionCapture();
+    }
+
+    private void CancelRegionCapture()
+    {
         _activeCapture?.Dispose();
         if (_selectionHost is not null)
         {
             if (!_selectionHost.Close()) CaptureStatus.Text = "Selection windows are still closing. Cancel retries cleanup.";
         }
-        else if (_activeCapture is { } session && !session.Capture.IsBusy)
+        else if (_activeCapture is { } session && session.Capture?.IsBusy != true)
             FinishCapture(session, "Selection canceled.");
         else CaptureStatus.Text = "Capture canceled; waiting for native work to finish.";
     }
@@ -348,9 +687,21 @@ public sealed partial class MainWindow : Window
     {
         if (_allowClose) return;
         args.Cancel = true;
-        if (_shutdownInProgress) return;
-        _shutdownInProgress = true;
-        ShutdownCompletion = ShutdownAndCloseAsync();
+        switch (_shellController.OnClose(_shell?.IsTrayAvailable == true, !_dictionaryDialogTask.IsCompleted))
+        {
+            case LauncherCloseAction.Hide:
+                InvalidateSelectedCapture();
+                _hiddenToTray = true;
+                AppWindow.Hide();
+                break;
+            case LauncherCloseAction.KeepVisible:
+                if (!_dictionaryDialogTask.IsCompleted) Activate();
+                break;
+            case LauncherCloseAction.BeginExit:
+            case LauncherCloseAction.RetryExit:
+                _shellController.RequestExit();
+                break;
+        }
     }
 
     private async Task ShutdownAndCloseAsync()
@@ -365,7 +716,13 @@ public sealed partial class MainWindow : Window
         try
         {
             Attempt(_cancelSharedWork);
+            Attempt(InvalidateSelectedCapture);
             Attempt(_dictionaryLifetime.Cancel);
+            if (_selectedTextCapture is { } selectedCapture)
+            {
+                try { retired &= selectedCapture.TryRetireObservers(); }
+                catch (Exception exception) { retired = false; ReportShutdownFailure(exception); }
+            }
             if (_dictionaryDialog is { } dialog)
             {
                 Attempt(dialog.Hide);
@@ -392,10 +749,12 @@ public sealed partial class MainWindow : Window
             }
             _draining.Add(_captureTask);
             CaptureStatus.Text = "Closing: waiting for native capture and backend requests to finish.";
-            await Task.WhenAll(_draining);
+            await FihLens.WinUI.Presentation.ShutdownCompletion.DrainAsync(_draining, ReportShutdownFailure);
             if (!retired || _selectionHost is not null || _capturePopups.Count > 0 || _previewSessions.Count > 0)
             {
                 CaptureStatus.Text = "Some windows could not close. Close the launcher again to retry cleanup.";
+                _shellController.CompleteExit(false);
+                ShowLauncher();
                 return;
             }
             await _finalizeShutdown();
@@ -408,6 +767,8 @@ public sealed partial class MainWindow : Window
         {
             ReportShutdownFailure(exception);
             CaptureStatus.Text = "Shutdown could not finish. Close the launcher again to retry cleanup.";
+            _shellController.CompleteExit(false);
+            ShowLauncher();
         }
         finally
         {
@@ -421,6 +782,15 @@ public sealed partial class MainWindow : Window
 
     private void MainWindow_Closed(object sender, WindowEventArgs args)
     {
+        _shellController.CompleteExit(true);
+        SingleInstanceActivation.Detach();
+        if (_shell is not null)
+        {
+            _shell.CommandRequested -= Shell_CommandRequested;
+            _shell.SelectedTextRequested -= Shell_SelectedTextRequested;
+            _shell.StateChanged -= Shell_StateChanged;
+        }
+        ViewModel.PropertyChanged -= LauncherBackendChanged;
         AppWindow.Closing -= AppWindow_Closing;
         Closed -= MainWindow_Closed;
         _dictionaryLifetime.Dispose();

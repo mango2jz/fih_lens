@@ -12,6 +12,12 @@
     <Compile Include="..\..\FihLens.WinUI\ViewModels\DictionaryManagementViewModel.cs" Link="WinUI\DictionaryManagementViewModel.cs" />
     <Compile Include="..\..\src\FihLens.Windows\Capture\CaptureValidation.cs" Link="Windows\CaptureValidation.cs" />
     <Compile Include="..\..\FihLens.WinUI\Presentation\CapturedTranslationSession.cs" Link="WinUI\CapturedTranslationSession.cs" />
+    <Compile Include="..\..\FihLens.WinUI\Presentation\SelectedTextCaptureSession.cs" Link="WinUI\SelectedTextCaptureSession.cs" />
+    <Compile Include="..\..\FihLens.WinUI\Presentation\ShutdownCompletion.cs" Link="WinUI\ShutdownCompletion.cs" />
+    <Compile Include="..\..\FihLens.WinUI\Presentation\BackgroundShellController.cs" Link="WinUI\BackgroundShellController.cs" />
+    <Compile Include="..\..\FihLens.WinUI\Presentation\SingleInstanceActivationPolicy.cs" Link="WinUI\SingleInstanceActivationPolicy.cs" />
+    <Compile Include="..\..\src\FihLens.Windows\Shell\BackgroundShellProtocol.cs" Link="Windows\BackgroundShellProtocol.cs" />
+    <Compile Include="..\..\src\FihLens.Windows\Capture\SelectedTextCaptureWorkerPolicy.cs" Link="Windows\SelectedTextCaptureWorkerPolicy.cs" />
     <PackageReference Include="coverlet.collector" Version="6.0.4" />
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />

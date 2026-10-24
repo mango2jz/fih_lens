@@ -14,39 +14,71 @@ public sealed class CapturedTranslationSession : IDisposable
     private bool _localLookupStarted;
     private bool _retired;
     private bool _hasCapturedInput;
+    private bool _lookupReady;
     private readonly RelayCommand _cancel;
-    public RegionCaptureSession Capture { get; }
+    public RegionCaptureSession? Capture { get; }
     public MainWindowViewModel Backend { get; }
     public TranslationPopupViewModel Popup { get; }
     public Task Completion { get; private set; } = Task.CompletedTask;
     public Task LocalLookupCompletion { get; private set; } = Task.CompletedTask;
+    public bool IsClosed => _closed;
 
     public CapturedTranslationSession(IRegionTextCapture capture, Func<Action, Task<bool>> publishOnUi,
         MainWindowViewModel backend, IClipboardWriter clipboard)
+        : this(new RegionCaptureSession(capture, publishOnUi), backend, clipboard, "Selected screen region")
+    {
+        Popup.PresentCaptureStatus("Select a screen region.", false, false);
+    }
+
+    public CapturedTranslationSession(MainWindowViewModel backend, IClipboardWriter clipboard)
+        : this(null, backend, clipboard, "Selected text")
+    {
+        Popup.PresentCaptureStatus("Reading the selected region with OCR locally…", true, false);
+    }
+
+    private CapturedTranslationSession(RegionCaptureSession? capture, MainWindowViewModel backend,
+        IClipboardWriter clipboard, string title)
     {
         Backend = backend;
         Backend.InputText = "";
-        Capture = new RegionCaptureSession(capture, publishOnUi);
-        Popup = TranslationPopupViewModel.ForInput("Selected screen region");
+        Capture = capture;
+        Popup = TranslationPopupViewModel.ForInput(title);
         Popup.BindPronunciation(Backend.Pronunciation, Backend.SourceLanguage, Backend.TargetLanguage);
-        _cancel = new RelayCommand(Cancel, () => !_closed && (Capture.IsBusy || Backend.CancelCommand.CanExecute(null)));
+        _cancel = new RelayCommand(Cancel, () => !_closed && (Capture?.IsBusy == true || Backend.CancelCommand.CanExecute(null)));
         Popup.BindActions(Backend.AskAiCommand, _cancel, Backend.AiSendNotice, clipboard);
-        Popup.PresentCaptureStatus("Select a screen region.", false, false);
         Backend.PropertyChanged += BackendChanged;
         Popup.CloseRequested += PopupClosed;
     }
 
+    public bool AdoptInput(string text)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(text);
+        if (_closed || _hasCapturedInput) return false;
+        _hasCapturedInput = true;
+        Backend.InputText = text;
+        Popup.SetCapturedInput(text);
+        Popup.RefreshBackendResult(Backend);
+        return true;
+    }
+
+    public void PopupShown()
+    {
+        if (_closed || _lookupReady) return;
+        _lookupReady = true;
+        if (_hasCapturedInput) StartLocalLookup();
+    }
+
     public bool Confirm(RegionTextCaptureRequest request)
     {
-        if (_closed || !Capture.Confirm(request)) return false;
-        Popup.PresentCaptureStatus("Reading selected text locallyâ€¦", true, false);
+        if (_closed || Capture is null || !Capture.Confirm(request)) return false;
+        Popup.PresentCaptureStatus("Reading selected text locally…", true, false);
         _cancel.NotifyCanExecuteChanged();
         return true;
     }
 
     public Task OverlayRetiredAsync()
     {
-        if (_closed) return Task.CompletedTask;
+        if (_closed || Capture is null) return Task.CompletedTask;
         if (!_retired)
         {
             _retired = true;
@@ -57,24 +89,24 @@ public sealed class CapturedTranslationSession : IDisposable
 
     private async Task FinishCaptureAsync()
     {
-        await Capture.OverlayRetiredAsync();
+        var capture = Capture;
+        if (capture is null) return;
+        await capture.OverlayRetiredAsync();
         if (_closed) return;
-        if (Capture.IsCanceled)
+        if (capture.IsCanceled)
         {
             Popup.PresentCaptureStatus("Capture canceled. Select the region again.", false, false);
             _cancel.NotifyCanExecuteChanged();
             return;
         }
-        if (Capture.Result is { Outcome: RegionTextCaptureOutcome.Success, Text: { } text })
+        if (capture.Result is { Outcome: RegionTextCaptureOutcome.Success, Text: { } text })
         {
-            Backend.InputText = text;
-            Popup.SetCapturedInput(text);
-            _hasCapturedInput = true;
-            Popup.RefreshBackendResult(Backend);
+            AdoptInput(text);
+            _lookupReady = true;
             StartLocalLookup();
             await LocalLookupCompletion;
         }
-        else Popup.PresentCaptureStatus(Capture.Result?.Outcome switch
+        else Popup.PresentCaptureStatus(capture.Result?.Outcome switch
         {
             RegionTextCaptureOutcome.NoText => "No readable text found. Select a clearer region.",
             RegionTextCaptureOutcome.SourceChanged => "Display changed. Select the region again.",
@@ -99,7 +131,8 @@ public sealed class CapturedTranslationSession : IDisposable
 
     private void BackendChanged(object? sender, PropertyChangedEventArgs args)
     {
-        if (_closed || !_hasCapturedInput || Capture.IsBusy || Capture.Result?.Outcome != RegionTextCaptureOutcome.Success) return;
+        if (_closed || !_lookupReady || !_hasCapturedInput || Capture?.IsBusy == true ||
+            (Capture is not null && Capture.Result?.Outcome != RegionTextCaptureOutcome.Success)) return;
         Popup.RefreshBackendResult(Backend);
         _cancel.NotifyCanExecuteChanged();
         StartLocalLookup();
@@ -107,17 +140,17 @@ public sealed class CapturedTranslationSession : IDisposable
 
     private void StartLocalLookup()
     {
-        if (_closed || _localLookupStarted || !Backend.LookupDictionaryCommand.CanExecute(null)) return;
+        if (_closed || !_lookupReady || _localLookupStarted || !Backend.LookupDictionaryCommand.CanExecute(null)) return;
         _localLookupStarted = true;
         LocalLookupCompletion = Backend.LookupDictionaryCommand.ExecuteAsync(null);
     }
 
     private void Cancel()
     {
-        if (Capture.IsBusy)
+        if (Capture?.IsBusy == true)
         {
             Capture.Dismiss();
-            Popup.PresentCaptureStatus("Capture canceled; waiting for native work to finish.", Capture.IsBusy, false);
+            Popup.PresentCaptureStatus("Capture canceled; waiting for native work to finish.", Capture?.IsBusy == true, false);
         }
         if (Backend.CancelCommand.CanExecute(null)) Backend.CancelCommand.Execute(null);
         _cancel.NotifyCanExecuteChanged();
@@ -129,7 +162,7 @@ public sealed class CapturedTranslationSession : IDisposable
     {
         if (_closed) return;
         _closed = true;
-        Capture.Dismiss();
+        Capture?.Dismiss();
         Backend.PropertyChanged -= BackendChanged;
         Popup.CloseRequested -= PopupClosed;
         Backend.Close();

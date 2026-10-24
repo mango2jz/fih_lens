@@ -12,6 +12,33 @@ namespace FihLens.Tests.WinUI;
 public sealed class CapturedTranslationSessionTests
 {
     [Fact]
+    public async Task SelectedInputWaitsForShownPopupBeforeStartingOneLocalLookup()
+    {
+        var provider = new Provider();
+        var dictionary = new Dictionary();
+        var backend = new MainWindowViewModel(new TranslationService(provider), "Fake");
+        backend.SetDictionaryAvailability(new DictionaryLookupService(dictionary), Source);
+        using var session = new CapturedTranslationSession(backend, new Clipboard());
+
+        Assert.True(session.AdoptInput("raw selected text"));
+        Assert.False(session.AdoptInput("replacement"));
+        Assert.Equal("raw selected text", backend.InputText);
+        Assert.Equal(0, dictionary.Calls);
+        Assert.Equal(0, provider.Calls);
+        Assert.True(session.Popup.AskAiCommand.CanExecute(null));
+
+        session.PopupShown();
+        await session.LocalLookupCompletion;
+        Assert.Equal("raw selected text", dictionary.Input);
+        Assert.Equal(1, dictionary.Calls);
+        Assert.Equal(0, provider.Calls);
+        session.Popup.AskAiCommand.Execute(null);
+        await backend.AskAiCommand.ExecutionTask!;
+        Assert.Equal("raw selected text", provider.Input);
+        Assert.Equal(1, provider.Calls);
+    }
+
+    [Fact]
     public async Task CaptureLooksUpCurrentInputAndOnlyExplicitAskAiCallsProvider()
     {
         var provider = new Provider();
@@ -27,6 +54,8 @@ public sealed class CapturedTranslationSessionTests
         Assert.Equal(0, provider.Calls);
         await session.OverlayRetiredAsync();
         await session.OverlayRetiredAsync();
+        session.PopupShown();
+        await session.LocalLookupCompletion;
         Assert.Equal("current selection", backend.InputText);
         Assert.Equal("current selection", dictionary.Input);
         Assert.Equal(1, dictionary.Calls);
@@ -58,6 +87,8 @@ public sealed class CapturedTranslationSessionTests
         using var session = NewSession(new Capture(RegionTextCaptureResult.Success("new input")), backend);
         session.Confirm(Request);
         await session.OverlayRetiredAsync();
+        session.PopupShown();
+        await session.LocalLookupCompletion;
         Assert.True(session.Popup.AskAiCommand.CanExecute(null));
         var dictionary = new Dictionary();
         backend.SetDictionaryAvailability(new DictionaryLookupService(dictionary), Source);
@@ -82,6 +113,7 @@ public sealed class CapturedTranslationSessionTests
             using var session = NewSession(new Capture(RegionTextCaptureResult.Success("せい")), backend, clipboard);
             session.Confirm(new RegionTextCaptureRequest(Request.Source, Request.Crop, Language.Japanese));
             await session.OverlayRetiredAsync();
+            session.PopupShown();
             backend.SetDictionaryAvailability(Language.Japanese, Language.English, new DictionaryLookupService(lookup), lookup.Source);
             await session.LocalLookupCompletion;
             Assert.Equal(2, session.Popup.DictionaryCards.Count);
@@ -123,6 +155,7 @@ public sealed class CapturedTranslationSessionTests
         var request = new RegionTextCaptureRequest(Request.Source, Request.Crop, Language.Japanese);
         Assert.True(session.Confirm(request));
         await session.OverlayRetiredAsync();
+        session.PopupShown();
 
         Assert.Equal(Language.Japanese, capture.Request!.SourceLanguage);
         Assert.Equal(0, dictionary.Calls);
@@ -145,11 +178,11 @@ public sealed class CapturedTranslationSessionTests
         session.Confirm(Request);
         var work = session.OverlayRetiredAsync();
         session.Dispose();
-        Assert.True(session.Capture.IsBusy);
+        Assert.True(session.Capture!.IsBusy);
         Assert.True(capture.Token.IsCancellationRequested);
         capture.Result.SetResult(RegionTextCaptureResult.Success("late captured text"));
         await work;
-        Assert.False(session.Capture.IsBusy);
+        Assert.False(session.Capture!.IsBusy);
         Assert.Null(session.Capture.Result);
         Assert.Empty(backend.InputText);
         Assert.Equal(0, provider.Calls);

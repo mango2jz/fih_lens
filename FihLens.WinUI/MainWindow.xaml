@@ -29,6 +29,13 @@
             </StackPanel>
             <TextBlock Text="{x:Bind ViewModel.LanguagePairUnavailableReason, Mode=OneWay}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
             <Button Content="Dictionaries" Click="Dictionaries_Click" AccessKey="D" AutomationProperties.Name="Manage local dictionaries" />
+            <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                <TextBlock x:Name="ShellStatus" Text="Ctrl+Shift+Space captures selected text. Select a screen region here or from the tray."
+                           TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
+                <Button x:Name="RetryHotkeyButton" Content="Retry hotkey" Click="RetryHotkey_Click" />
+                <Button x:Name="RetryShellButton" Content="Retry shell" Click="RetryShell_Click" />
+                <Button Content="Exit" Click="Exit_Click" AutomationProperties.Name="Exit FIH Lens" />
+            </StackPanel>
         </StackPanel>
 
         <Grid Grid.Row="1" ColumnSpacing="8">

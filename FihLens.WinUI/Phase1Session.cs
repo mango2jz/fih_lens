@@ -19,10 +19,10 @@ internal sealed class Phase1Session : IDisposable
     public event EventHandler? Closed;
     public event EventHandler? Failed;
 
-    public Phase1Session(TranslationPopupViewModel viewModel, AppWindow launcher)
+    public Phase1Session(TranslationPopupViewModel viewModel, AppWindow launcher, WindowFocusSnapshot? origin = null)
     {
         _viewModel = viewModel;
-        _priorForeground = WindowFocus.Capture();
+        _priorForeground = origin ?? WindowFocus.Capture();
         try { _window = new TranslationPopupWindow(viewModel, launcher); }
         catch
         {
