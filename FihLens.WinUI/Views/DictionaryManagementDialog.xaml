@@ -2,29 +2,119 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:vm="using:FihLens.WinUI.ViewModels"
-    Title="Local dictionaries" CloseButtonText="Skip / Close" DefaultButton="Close">
-  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-    <StackPanel Spacing="12" MaxWidth="560">
-      <TextBlock Text="Install only the dictionary you select. Lookup stays offline; Ask AI sends text only when requested." TextWrapping="Wrap"/>
-      <TextBlock Text="{x:Bind ViewModel.LegacyStatusText, Mode=OneWay}" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
-      <ListView ItemsSource="{x:Bind ViewModel.Packs, Mode=OneWay}" SelectedItem="{x:Bind ViewModel.SelectedPack, Mode=TwoWay}"
-                IsEnabled="{x:Bind ViewModel.IsEditingEnabled, Mode=OneWay}" SelectionMode="Single" AutomationProperties.Name="Available dictionary packs">
-        <ListView.ItemTemplate>
-          <DataTemplate x:DataType="vm:DictionaryPackRowViewModel">
-            <StackPanel Spacing="6" Margin="0,8">
-              <TextBlock Text="{x:Bind Title}" FontWeight="SemiBold" TextWrapping="Wrap"/>
-              <TextBlock Text="{x:Bind Details}" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
-              <TextBlock Text="{x:Bind StatusText}" TextWrapping="Wrap"/>
-            </StackPanel>
-          </DataTemplate>
-        </ListView.ItemTemplate>
-      </ListView>
-      <StackPanel Orientation="Horizontal" Spacing="8">
-        <Button Content="Install / Update selected" Command="{x:Bind ViewModel.InstallCommand}"/>
-        <Button Content="Remove selected" Command="{x:Bind ViewModel.RemoveCommand}"/>
-        <Button Content="Cancel" Command="{x:Bind ViewModel.CancelCommand}"/>
+    Background="{ThemeResource Phase1BarBrush}" CornerRadius="{StaticResource Phase1RadiusLg}">
+  <!-- Dictionary packs (screens/dictionary-packs): one switch per language direction. -->
+  <ContentDialog.Title>
+    <Grid Width="472">
+      <StackPanel Orientation="Horizontal" Spacing="12">
+        <Path Style="{StaticResource Phase1StrokeIconStyle}" Stroke="{ThemeResource Phase1KoiInkBrush}" VerticalAlignment="Center"
+              Data="M3.5 4.5C5.5 4 8.5 4 10 5.5C11.5 4 14.5 4 16.5 4.5V15.5C14.5 15 11.5 15 10 16.5C8.5 15 5.5 15 3.5 15.5V4.5ZM10 5.5V16.5" />
+        <TextBlock Text="Offline dictionaries" FontFamily="{StaticResource Phase1SansBoldFontFamily}" FontSize="19" LineHeight="28" FontWeight="Bold"
+                   Foreground="{ThemeResource Phase1InkBrush}" VerticalAlignment="Center" />
       </StackPanel>
-      <TextBlock Text="{x:Bind ViewModel.StatusText, Mode=OneWay}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
+      <!-- The reference closes from the corner; Escape still closes through the accelerator. -->
+      <Button Style="{StaticResource Phase1SmallGhostIconButtonStyle}" HorizontalAlignment="Right" VerticalAlignment="Center" Click="Close_Click"
+              AutomationProperties.Name="Close dictionaries" ToolTipService.ToolTip="Close (Esc)">
+        <Button.KeyboardAccelerators>
+          <KeyboardAccelerator Key="Escape" />
+        </Button.KeyboardAccelerators>
+        <Path Style="{StaticResource Phase1StrokeIconStyle}" Width="16" Height="16" Stroke="{ThemeResource Phase1InkMutedBrush}"
+              Data="M4 4L12 12M12 4L4 12" />
+      </Button>
+    </Grid>
+  </ContentDialog.Title>
+  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+    <StackPanel Width="472">
+      <TextBlock Text="Turn on the directions you read. They work with no internet." Style="{StaticResource Phase1BodyTextStyle}" FontSize="14" LineHeight="20"
+                 Foreground="{ThemeResource Phase1InkMutedBrush}" Margin="0,0,0,12" />
+
+      <!-- English → Vietnamese comes from the original setup; this dialog shows it but does not change it. -->
+      <Grid Padding="0,12" ColumnSpacing="{StaticResource Phase1Space12}" BorderBrush="{ThemeResource Phase1LineBrush}" BorderThickness="0,1,0,0">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="Auto" />
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+        <Border Width="64" Height="34" CornerRadius="10" Background="{ThemeResource Phase1BarRaisedBrush}">
+          <TextBlock Text="EN → VI" FontFamily="{StaticResource Phase1MonoFontFamily}" FontSize="11" FontWeight="SemiBold"
+                     Foreground="{ThemeResource Phase1InkBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+        </Border>
+        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+          <TextBlock Text="English → Vietnamese" Style="{StaticResource Phase1LabelTextStyle}" FontSize="15" LineHeight="22" />
+          <TextBlock Text="{x:Bind ViewModel.LegacySummary, Mode=OneWay}" Style="{StaticResource Phase1CaptionTextStyle}" />
+          <HyperlinkButton Content="Source &amp; license" Style="{StaticResource Phase1LinkButtonStyle}" Padding="0,2" Margin="0,2,0,0"
+                           Click="ShowAttachedFlyout_Click" AutomationProperties.Name="English to Vietnamese source and license">
+            <FlyoutBase.AttachedFlyout>
+              <Flyout>
+                <TextBlock Text="{x:Bind ViewModel.LegacyStatusText, Mode=OneWay}" Style="{StaticResource Phase1CaptionTextStyle}" MaxWidth="400" />
+              </Flyout>
+            </FlyoutBase.AttachedFlyout>
+          </HyperlinkButton>
+        </StackPanel>
+        <ToggleSwitch Grid.Column="2" IsOn="{x:Bind ViewModel.LegacyInstalled, Mode=OneWay}" IsEnabled="False" OnContent="" OffContent="" MinWidth="0"
+                      VerticalAlignment="Center" AutomationProperties.Name="English to Vietnamese"
+                      AutomationProperties.HelpText="Managed by the existing setup; this dialog does not change it." />
+      </Grid>
+
+      <ItemsControl ItemsSource="{x:Bind ViewModel.Packs, Mode=OneWay}" AutomationProperties.Name="Available dictionary packs">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="vm:DictionaryPackRowViewModel">
+            <Grid Padding="0,12" ColumnSpacing="12" BorderBrush="{ThemeResource Phase1LineBrush}" BorderThickness="0,1,0,0" Opacity="{x:Bind RowOpacity}">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+              </Grid.ColumnDefinitions>
+              <Border Width="64" Height="34" CornerRadius="10" Background="{ThemeResource Phase1BarRaisedBrush}">
+                <TextBlock Text="{x:Bind Flag}" FontFamily="{StaticResource Phase1MonoFontFamily}" FontSize="11" FontWeight="SemiBold"
+                           Foreground="{ThemeResource Phase1InkBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+              </Border>
+              <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock Text="{x:Bind DirectionName}" Style="{StaticResource Phase1LabelTextStyle}" FontSize="15" LineHeight="22" />
+                  <ContentControl Style="{StaticResource Phase1BadgeStyle}" Content="Restart to finish" Visibility="{x:Bind NeedsRestart}"
+                                  Background="{ThemeResource Phase1KoiSoftBrush}" Foreground="{ThemeResource Phase1KoiInkBrush}" />
+                </StackPanel>
+                <TextBlock Text="{x:Bind Summary}" Style="{StaticResource Phase1CaptionTextStyle}" />
+                <HyperlinkButton Content="Details" Style="{StaticResource Phase1LinkButtonStyle}" Padding="0,2" Margin="0,2,0,0"
+                                 Click="ShowAttachedFlyout_Click" AutomationProperties.Name="{x:Bind Title}">
+                  <FlyoutBase.AttachedFlyout>
+                    <Flyout>
+                      <StackPanel Spacing="8" MaxWidth="400">
+                        <TextBlock Text="{x:Bind Title}" Style="{StaticResource Phase1LabelTextStyle}" />
+                        <TextBlock Text="{x:Bind Details}" Style="{StaticResource Phase1CaptionTextStyle}" />
+                        <TextBlock Text="{x:Bind StatusText}" Style="{StaticResource Phase1CaptionTextStyle}" />
+                      </StackPanel>
+                    </Flyout>
+                  </FlyoutBase.AttachedFlyout>
+                </HyperlinkButton>
+              </StackPanel>
+              <ToggleSwitch Grid.Column="2" IsOn="{x:Bind IsOn}" IsEnabled="{x:Bind CanToggle}" OnContent="" OffContent="" MinWidth="0"
+                            VerticalAlignment="Center" Tag="{x:Bind}" Toggled="Pack_Toggled"
+                            AutomationProperties.Name="{x:Bind DirectionName}" AutomationProperties.HelpText="{x:Bind Summary}" />
+            </Grid>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+
+      <!-- Progress of the current install or removal. -->
+      <Grid Padding="0,12" ColumnSpacing="12" BorderBrush="{ThemeResource Phase1LineBrush}" BorderThickness="0,1,0,0">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+        <TextBlock Text="{x:Bind ViewModel.StatusText, Mode=OneWay}" Style="{StaticResource Phase1CaptionTextStyle}" VerticalAlignment="Center"
+                   AutomationProperties.LiveSetting="Polite" />
+        <Button Grid.Column="1" Content="Cancel" Command="{x:Bind ViewModel.CancelCommand}" Visibility="{x:Bind ViewModel.IsBusy, Mode=OneWay}"
+                Style="{StaticResource Phase1ActionButtonStyle}" />
+      </Grid>
+
+      <Border Padding="12" CornerRadius="{StaticResource Phase1RadiusSm}" Background="{ThemeResource Phase1BarRaisedBrush}">
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <BitmapIcon Style="{StaticResource Phase1CheckIconStyle}" Width="16" Height="16" Foreground="{ThemeResource Phase1LocalInkBrush}" />
+          <TextBlock Text="Lookups stay on this device. Only Ask AI sends text online." Style="{StaticResource Phase1CaptionTextStyle}" VerticalAlignment="Center" />
+        </StackPanel>
+      </Border>
     </StackPanel>
   </ScrollViewer>
 </ContentDialog>

@@ -123,6 +123,54 @@ public sealed class TranslationPopupViewModelTests
     }
 
     [Fact]
+    public void ExplainOpensAttachedDetailInsteadOfExpanding()
+    {
+        var viewModel = Phase1PreviewData.Compact();
+        int opened = 0;
+        viewModel.SetOpenDetail(() => opened++);
+
+        Assert.True(viewModel.ExplainCommand.CanExecute(null));
+        viewModel.ExplainCommand.Execute(null);
+
+        Assert.Equal(1, opened);
+        Assert.False(viewModel.IsExpanded);
+        viewModel.CloseCommand.Execute(null);
+        Assert.False(viewModel.ExplainCommand.CanExecute(null));
+    }
+
+    [Fact]
+    public void FailedCaptureShowsStageAlertAndCannotExplainUntilTextArrives()
+    {
+        var viewModel = TranslationPopupViewModel.ForInput("Selected screen region");
+        viewModel.SetOpenDetail(() => { });
+
+        viewModel.PresentCaptureStatus("No readable text found. Select a clearer region.", false, true);
+
+        Assert.True(viewModel.ShowStageAlert);
+        Assert.True(viewModel.ShowSelectAgain);
+        Assert.False(viewModel.ShowAnswer);
+        Assert.False(viewModel.ShowBackendStatuses);
+        Assert.Equal("No readable text found. Select a clearer region.", viewModel.StageDescription);
+        Assert.False(viewModel.ExplainCommand.CanExecute(null));
+
+        viewModel.SetCapturedInput("time");
+
+        Assert.False(viewModel.ShowStageAlert);
+        Assert.True(viewModel.ShowAnswer);
+        Assert.True(viewModel.ExplainCommand.CanExecute(null));
+    }
+
+    [Fact]
+    public void ExplainExpandsInPlaceWithoutAttachedDetail()
+    {
+        var viewModel = Phase1PreviewData.Compact();
+
+        viewModel.ExplainCommand.Execute(null);
+
+        Assert.True(viewModel.IsExpanded);
+    }
+
+    [Fact]
     public void ExpandingAndCollapsingRetainsCurrentSnapshotWithoutClosingOrReacquiring()
     {
         var viewModel = Phase1PreviewData.Compact();

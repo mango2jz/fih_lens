@@ -1,36 +1,200 @@
 <ResourceDictionary
   xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
   xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <!-- Values come from docs/design/spotlight/tokens.json. Default = dark, Light = light; HighContrast keeps system colours. -->
   <ResourceDictionary.ThemeDictionaries>
-    <ResourceDictionary x:Key="Light">
-      <SolidColorBrush x:Key="Phase1SurfaceBrush" Color="#FAFAFA" />
-      <SolidColorBrush x:Key="Phase1TextBrush" Color="#1A1A1A" />
-      <SolidColorBrush x:Key="Phase1SecondaryBrush" Color="#595959" />
-      <SolidColorBrush x:Key="Phase1BorderBrush" Color="#D1D1D1" />
-      <SolidColorBrush x:Key="Phase1SubtleBrush" Color="#F0F0F0" />
-      <SolidColorBrush x:Key="Phase1AccentBrush" Color="#005FB8" />
-      <SolidColorBrush x:Key="Phase1AccentSoftBrush" Color="#E5F1FB" />
-      <SolidColorBrush x:Key="Phase1OnAccentBrush" Color="#FFFFFF" />
-      <SolidColorBrush x:Key="Phase1SuccessBrush" Color="#0F6B3A" />
-      <SolidColorBrush x:Key="Phase1SuccessSoftBrush" Color="#E8F5ED" />
-      <SolidColorBrush x:Key="Phase1ErrorBrush" Color="#A4262C" />
-      <SolidColorBrush x:Key="Phase1ErrorSoftBrush" Color="#FDEBED" />
-    </ResourceDictionary>
     <ResourceDictionary x:Key="Default">
-      <SolidColorBrush x:Key="Phase1SurfaceBrush" Color="#2C2C2C" />
-      <SolidColorBrush x:Key="Phase1TextBrush" Color="#F5F5F5" />
-      <SolidColorBrush x:Key="Phase1SecondaryBrush" Color="#C5C5C5" />
-      <SolidColorBrush x:Key="Phase1BorderBrush" Color="#606060" />
-      <SolidColorBrush x:Key="Phase1SubtleBrush" Color="#383838" />
-      <SolidColorBrush x:Key="Phase1AccentBrush" Color="#60CDFF" />
-      <SolidColorBrush x:Key="Phase1AccentSoftBrush" Color="#153E52" />
-      <SolidColorBrush x:Key="Phase1OnAccentBrush" Color="#002B40" />
-      <SolidColorBrush x:Key="Phase1SuccessBrush" Color="#8AD5A6" />
-      <SolidColorBrush x:Key="Phase1SuccessSoftBrush" Color="#1C3B29" />
-      <SolidColorBrush x:Key="Phase1ErrorBrush" Color="#FFB4AB" />
-      <SolidColorBrush x:Key="Phase1ErrorSoftBrush" Color="#4C2525" />
+      <Color x:Key="Phase1DeskColor">#0B0C0F</Color>
+      <Color x:Key="Phase1BarColor">#16171B</Color>
+      <Color x:Key="Phase1BarRaisedColor">#1F2126</Color>
+      <Color x:Key="Phase1BarSunkenColor">#101114</Color>
+      <Color x:Key="Phase1LineColor">#2B2D34</Color>
+      <Color x:Key="Phase1LineStrongColor">#6B6F7A</Color>
+      <Color x:Key="Phase1InkColor">#F3F1EC</Color>
+      <Color x:Key="Phase1InkMutedColor">#A4A7B0</Color>
+      <Color x:Key="Phase1InkFaintColor">#8A8E98</Color>
+      <Color x:Key="Phase1KoiColor">#D67FD5</Color>
+      <Color x:Key="Phase1OnKoiColor">#1C0D04</Color>
+      <Color x:Key="Phase1KoiInkColor">#EB8AEA</Color>
+      <Color x:Key="Phase1KoiSoftColor">#3A1D3A</Color>
+      <Color x:Key="Phase1KoiEdgeColor">#1C0D04</Color>
+      <Color x:Key="Phase1LimeColor">#C9F26B</Color>
+      <Color x:Key="Phase1OnLimeColor">#172007</Color>
+      <Color x:Key="Phase1LimeInkColor">#C9F26B</Color>
+      <Color x:Key="Phase1LimeSoftColor">#232C10</Color>
+      <Color x:Key="Phase1LocalInkColor">#8FD3FF</Color>
+      <Color x:Key="Phase1LocalSoftColor">#132634</Color>
+      <Color x:Key="Phase1DangerColor">#FF9B8F</Color>
+      <Color x:Key="Phase1DangerSoftColor">#3B1A17</Color>
+      <Color x:Key="Phase1SuccessColor">#7FDBA5</Color>
+      <Color x:Key="Phase1FocusColor">#EB8AEA</Color>
+      <Color x:Key="Phase1ScrimColor">#9E050608</Color>
+      <!-- shadow-float: 0 24px 64px rgba(0,0,0,.55) plus a 1px rgba(255,255,255,.06) ring; shadow-key: 0 1px 0 rgba(0,0,0,.6). -->
+      <Color x:Key="Phase1ShadowFloatColor">#8C000000</Color>
+      <Color x:Key="Phase1ShadowFloatRingColor">#0FFFFFFF</Color>
+      <Color x:Key="Phase1ShadowKeyColor">#99000000</Color>
+
+      <SolidColorBrush x:Key="Phase1DeskBrush" Color="{StaticResource Phase1DeskColor}" />
+      <SolidColorBrush x:Key="Phase1BarBrush" Color="{StaticResource Phase1BarColor}" />
+      <SolidColorBrush x:Key="Phase1BarRaisedBrush" Color="{StaticResource Phase1BarRaisedColor}" />
+      <SolidColorBrush x:Key="Phase1BarSunkenBrush" Color="{StaticResource Phase1BarSunkenColor}" />
+      <SolidColorBrush x:Key="Phase1LineBrush" Color="{StaticResource Phase1LineColor}" />
+      <SolidColorBrush x:Key="Phase1LineStrongBrush" Color="{StaticResource Phase1LineStrongColor}" />
+      <SolidColorBrush x:Key="Phase1InkBrush" Color="{StaticResource Phase1InkColor}" />
+      <SolidColorBrush x:Key="Phase1InkMutedBrush" Color="{StaticResource Phase1InkMutedColor}" />
+      <SolidColorBrush x:Key="Phase1InkFaintBrush" Color="{StaticResource Phase1InkFaintColor}" />
+      <SolidColorBrush x:Key="Phase1KoiBrush" Color="{StaticResource Phase1KoiColor}" />
+      <SolidColorBrush x:Key="Phase1OnKoiBrush" Color="{StaticResource Phase1OnKoiColor}" />
+      <SolidColorBrush x:Key="Phase1KoiInkBrush" Color="{StaticResource Phase1KoiInkColor}" />
+      <SolidColorBrush x:Key="Phase1KoiSoftBrush" Color="{StaticResource Phase1KoiSoftColor}" />
+      <SolidColorBrush x:Key="Phase1KoiEdgeBrush" Color="{StaticResource Phase1KoiEdgeColor}" />
+      <SolidColorBrush x:Key="Phase1LimeBrush" Color="{StaticResource Phase1LimeColor}" />
+      <SolidColorBrush x:Key="Phase1OnLimeBrush" Color="{StaticResource Phase1OnLimeColor}" />
+      <SolidColorBrush x:Key="Phase1LimeInkBrush" Color="{StaticResource Phase1LimeInkColor}" />
+      <SolidColorBrush x:Key="Phase1LimeSoftBrush" Color="{StaticResource Phase1LimeSoftColor}" />
+      <SolidColorBrush x:Key="Phase1LocalInkBrush" Color="{StaticResource Phase1LocalInkColor}" />
+      <SolidColorBrush x:Key="Phase1LocalSoftBrush" Color="{StaticResource Phase1LocalSoftColor}" />
+      <SolidColorBrush x:Key="Phase1DangerBrush" Color="{StaticResource Phase1DangerColor}" />
+      <SolidColorBrush x:Key="Phase1DangerSoftBrush" Color="{StaticResource Phase1DangerSoftColor}" />
+      <SolidColorBrush x:Key="Phase1SuccessBrush" Color="{StaticResource Phase1SuccessColor}" />
+      <SolidColorBrush x:Key="Phase1FocusBrush" Color="{StaticResource Phase1FocusColor}" />
+      <SolidColorBrush x:Key="Phase1ScrimBrush" Color="{StaticResource Phase1ScrimColor}" />
+      <!-- System focus visuals take the focus token everywhere. -->
+      <SolidColorBrush x:Key="SystemControlFocusVisualPrimaryBrush" Color="{StaticResource Phase1FocusColor}" />
+      <!-- Switches that are on use koi, including the locked EN → VI row. -->
+      <SolidColorBrush x:Key="ToggleSwitchFillOn" Color="{StaticResource Phase1KoiColor}" />
+      <SolidColorBrush x:Key="ToggleSwitchFillOnPointerOver" Color="{StaticResource Phase1KoiColor}" />
+      <SolidColorBrush x:Key="ToggleSwitchFillOnPressed" Color="{StaticResource Phase1KoiColor}" />
+      <SolidColorBrush x:Key="ToggleSwitchFillOnDisabled" Color="{StaticResource Phase1KoiColor}" />
+      <SolidColorBrush x:Key="ToggleSwitchKnobFillOn" Color="{StaticResource Phase1OnKoiColor}" />
+      <SolidColorBrush x:Key="ToggleSwitchKnobFillOnPointerOver" Color="{StaticResource Phase1OnKoiColor}" />
+      <SolidColorBrush x:Key="ToggleSwitchKnobFillOnPressed" Color="{StaticResource Phase1OnKoiColor}" />
+      <SolidColorBrush x:Key="ToggleSwitchKnobFillOnDisabled" Color="{StaticResource Phase1OnKoiColor}" />
+
+      <!-- Earlier key names, kept until each view is rebuilt in later phases. -->
+      <SolidColorBrush x:Key="Phase1SurfaceBrush" Color="{StaticResource Phase1BarColor}" />
+      <SolidColorBrush x:Key="Phase1TextBrush" Color="{StaticResource Phase1InkColor}" />
+      <SolidColorBrush x:Key="Phase1SecondaryBrush" Color="{StaticResource Phase1InkMutedColor}" />
+      <SolidColorBrush x:Key="Phase1BorderBrush" Color="{StaticResource Phase1LineColor}" />
+      <SolidColorBrush x:Key="Phase1SubtleBrush" Color="{StaticResource Phase1BarRaisedColor}" />
+      <SolidColorBrush x:Key="Phase1AccentBrush" Color="{StaticResource Phase1KoiColor}" />
+      <SolidColorBrush x:Key="Phase1AccentSoftBrush" Color="{StaticResource Phase1KoiSoftColor}" />
+      <SolidColorBrush x:Key="Phase1OnAccentBrush" Color="{StaticResource Phase1OnKoiColor}" />
+      <!-- No success-soft token: success strips are neutral and rely on the Check icon and success text. -->
+      <SolidColorBrush x:Key="Phase1SuccessSoftBrush" Color="{StaticResource Phase1BarRaisedColor}" />
+      <SolidColorBrush x:Key="Phase1ErrorBrush" Color="{StaticResource Phase1DangerColor}" />
+      <SolidColorBrush x:Key="Phase1ErrorSoftBrush" Color="{StaticResource Phase1DangerSoftColor}" />
+    </ResourceDictionary>
+    <ResourceDictionary x:Key="Light">
+      <Color x:Key="Phase1DeskColor">#E7E4DE</Color>
+      <Color x:Key="Phase1BarColor">#FFFFFF</Color>
+      <Color x:Key="Phase1BarRaisedColor">#F5F3EF</Color>
+      <Color x:Key="Phase1BarSunkenColor">#EEEBE5</Color>
+      <Color x:Key="Phase1LineColor">#E0DCD4</Color>
+      <Color x:Key="Phase1LineStrongColor">#8A867E</Color>
+      <Color x:Key="Phase1InkColor">#17181B</Color>
+      <Color x:Key="Phase1InkMutedColor">#5C5F67</Color>
+      <Color x:Key="Phase1InkFaintColor">#6E7178</Color>
+      <Color x:Key="Phase1KoiColor">#CD7ACC</Color>
+      <Color x:Key="Phase1OnKoiColor">#1C0D04</Color>
+      <Color x:Key="Phase1KoiInkColor">#96509A</Color>
+      <Color x:Key="Phase1KoiSoftColor">#FAE8FA</Color>
+      <Color x:Key="Phase1KoiEdgeColor">#1C0D04</Color>
+      <Color x:Key="Phase1LimeColor">#C9F26B</Color>
+      <Color x:Key="Phase1OnLimeColor">#172007</Color>
+      <Color x:Key="Phase1LimeInkColor">#466300</Color>
+      <Color x:Key="Phase1LimeSoftColor">#EEF8D4</Color>
+      <Color x:Key="Phase1LocalInkColor">#0B5F99</Color>
+      <Color x:Key="Phase1LocalSoftColor">#E3F2FC</Color>
+      <Color x:Key="Phase1DangerColor">#B3261E</Color>
+      <Color x:Key="Phase1DangerSoftColor">#FDE9E6</Color>
+      <Color x:Key="Phase1SuccessColor">#16703C</Color>
+      <Color x:Key="Phase1FocusColor">#B46CB3</Color>
+      <Color x:Key="Phase1ScrimColor">#6B17181B</Color>
+      <!-- shadow-float: 0 24px 60px rgba(40,32,20,.18) plus a 1px rgba(23,24,27,.06) ring; shadow-key: 0 1px 0 rgba(23,24,27,.18). -->
+      <Color x:Key="Phase1ShadowFloatColor">#2E282014</Color>
+      <Color x:Key="Phase1ShadowFloatRingColor">#0F17181B</Color>
+      <Color x:Key="Phase1ShadowKeyColor">#2E17181B</Color>
+
+      <SolidColorBrush x:Key="Phase1DeskBrush" Color="{StaticResource Phase1DeskColor}" />
+      <SolidColorBrush x:Key="Phase1BarBrush" Color="{StaticResource Phase1BarColor}" />
+      <SolidColorBrush x:Key="Phase1BarRaisedBrush" Color="{StaticResource Phase1BarRaisedColor}" />
+      <SolidColorBrush x:Key="Phase1BarSunkenBrush" Color="{StaticResource Phase1BarSunkenColor}" />
+      <SolidColorBrush x:Key="Phase1LineBrush" Color="{StaticResource Phase1LineColor}" />
+      <SolidColorBrush x:Key="Phase1LineStrongBrush" Color="{StaticResource Phase1LineStrongColor}" />
+      <SolidColorBrush x:Key="Phase1InkBrush" Color="{StaticResource Phase1InkColor}" />
+      <SolidColorBrush x:Key="Phase1InkMutedBrush" Color="{StaticResource Phase1InkMutedColor}" />
+      <SolidColorBrush x:Key="Phase1InkFaintBrush" Color="{StaticResource Phase1InkFaintColor}" />
+      <SolidColorBrush x:Key="Phase1KoiBrush" Color="{StaticResource Phase1KoiColor}" />
+      <SolidColorBrush x:Key="Phase1OnKoiBrush" Color="{StaticResource Phase1OnKoiColor}" />
+      <SolidColorBrush x:Key="Phase1KoiInkBrush" Color="{StaticResource Phase1KoiInkColor}" />
+      <SolidColorBrush x:Key="Phase1KoiSoftBrush" Color="{StaticResource Phase1KoiSoftColor}" />
+      <SolidColorBrush x:Key="Phase1KoiEdgeBrush" Color="{StaticResource Phase1KoiEdgeColor}" />
+      <SolidColorBrush x:Key="Phase1LimeBrush" Color="{StaticResource Phase1LimeColor}" />
+      <SolidColorBrush x:Key="Phase1OnLimeBrush" Color="{StaticResource Phase1OnLimeColor}" />
+      <SolidColorBrush x:Key="Phase1LimeInkBrush" Color="{StaticResource Phase1LimeInkColor}" />
+      <SolidColorBrush x:Key="Phase1LimeSoftBrush" Color="{StaticResource Phase1LimeSoftColor}" />
+      <SolidColorBrush x:Key="Phase1LocalInkBrush" Color="{StaticResource Phase1LocalInkColor}" />
+      <SolidColorBrush x:Key="Phase1LocalSoftBrush" Color="{StaticResource Phase1LocalSoftColor}" />
+      <SolidColorBrush x:Key="Phase1DangerBrush" Color="{StaticResource Phase1DangerColor}" />
+      <SolidColorBrush x:Key="Phase1DangerSoftBrush" Color="{StaticResource Phase1DangerSoftColor}" />
+      <SolidColorBrush x:Key="Phase1SuccessBrush" Color="{StaticResource Phase1SuccessColor}" />
+      <SolidColorBrush x:Key="Phase1FocusBrush" Color="{StaticResource Phase1FocusColor}" />
+      <SolidColorBrush x:Key="Phase1ScrimBrush" Color="{StaticResource Phase1ScrimColor}" />
+      <SolidColorBrush x:Key="SystemControlFocusVisualPrimaryBrush" Color="{StaticResource Phase1FocusColor}" />
+      <SolidColorBrush x:Key="ToggleSwitchFillOn" Color="{StaticResource Phase1KoiColor}" />
+      <SolidColorBrush x:Key="ToggleSwitchFillOnPointerOver" Color="{StaticResource Phase1KoiColor}" />
+      <SolidColorBrush x:Key="ToggleSwitchFillOnPressed" Color="{StaticResource Phase1KoiColor}" />
+      <SolidColorBrush x:Key="ToggleSwitchFillOnDisabled" Color="{StaticResource Phase1KoiColor}" />
+      <SolidColorBrush x:Key="ToggleSwitchKnobFillOn" Color="{StaticResource Phase1OnKoiColor}" />
+      <SolidColorBrush x:Key="ToggleSwitchKnobFillOnPointerOver" Color="{StaticResource Phase1OnKoiColor}" />
+      <SolidColorBrush x:Key="ToggleSwitchKnobFillOnPressed" Color="{StaticResource Phase1OnKoiColor}" />
+      <SolidColorBrush x:Key="ToggleSwitchKnobFillOnDisabled" Color="{StaticResource Phase1OnKoiColor}" />
+
+      <SolidColorBrush x:Key="Phase1SurfaceBrush" Color="{StaticResource Phase1BarColor}" />
+      <SolidColorBrush x:Key="Phase1TextBrush" Color="{StaticResource Phase1InkColor}" />
+      <SolidColorBrush x:Key="Phase1SecondaryBrush" Color="{StaticResource Phase1InkMutedColor}" />
+      <SolidColorBrush x:Key="Phase1BorderBrush" Color="{StaticResource Phase1LineColor}" />
+      <SolidColorBrush x:Key="Phase1SubtleBrush" Color="{StaticResource Phase1BarRaisedColor}" />
+      <SolidColorBrush x:Key="Phase1AccentBrush" Color="{StaticResource Phase1KoiColor}" />
+      <SolidColorBrush x:Key="Phase1AccentSoftBrush" Color="{StaticResource Phase1KoiSoftColor}" />
+      <SolidColorBrush x:Key="Phase1OnAccentBrush" Color="{StaticResource Phase1OnKoiColor}" />
+      <SolidColorBrush x:Key="Phase1SuccessSoftBrush" Color="{StaticResource Phase1BarRaisedColor}" />
+      <SolidColorBrush x:Key="Phase1ErrorBrush" Color="{StaticResource Phase1DangerColor}" />
+      <SolidColorBrush x:Key="Phase1ErrorSoftBrush" Color="{StaticResource Phase1DangerSoftColor}" />
     </ResourceDictionary>
     <ResourceDictionary x:Key="HighContrast">
+      <Color x:Key="Phase1ShadowFloatColor">Transparent</Color>
+      <Color x:Key="Phase1ShadowFloatRingColor">Transparent</Color>
+      <Color x:Key="Phase1ShadowKeyColor">Transparent</Color>
+
+      <SolidColorBrush x:Key="Phase1DeskBrush" Color="{ThemeResource SystemColorWindowColor}" />
+      <SolidColorBrush x:Key="Phase1BarBrush" Color="{ThemeResource SystemColorWindowColor}" />
+      <SolidColorBrush x:Key="Phase1BarRaisedBrush" Color="{ThemeResource SystemColorWindowColor}" />
+      <SolidColorBrush x:Key="Phase1BarSunkenBrush" Color="{ThemeResource SystemColorWindowColor}" />
+      <SolidColorBrush x:Key="Phase1LineBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+      <SolidColorBrush x:Key="Phase1LineStrongBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+      <SolidColorBrush x:Key="Phase1InkBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+      <SolidColorBrush x:Key="Phase1InkMutedBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+      <SolidColorBrush x:Key="Phase1InkFaintBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+      <SolidColorBrush x:Key="Phase1KoiBrush" Color="{ThemeResource SystemColorHighlightColor}" />
+      <SolidColorBrush x:Key="Phase1OnKoiBrush" Color="{ThemeResource SystemColorHighlightTextColor}" />
+      <SolidColorBrush x:Key="Phase1KoiInkBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+      <SolidColorBrush x:Key="Phase1KoiSoftBrush" Color="{ThemeResource SystemColorWindowColor}" />
+      <SolidColorBrush x:Key="Phase1KoiEdgeBrush" Color="{ThemeResource SystemColorWindowColor}" />
+      <SolidColorBrush x:Key="Phase1LimeBrush" Color="{ThemeResource SystemColorHighlightColor}" />
+      <SolidColorBrush x:Key="Phase1OnLimeBrush" Color="{ThemeResource SystemColorHighlightTextColor}" />
+      <SolidColorBrush x:Key="Phase1LimeInkBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+      <SolidColorBrush x:Key="Phase1LimeSoftBrush" Color="{ThemeResource SystemColorWindowColor}" />
+      <SolidColorBrush x:Key="Phase1LocalInkBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+      <SolidColorBrush x:Key="Phase1LocalSoftBrush" Color="{ThemeResource SystemColorWindowColor}" />
+      <SolidColorBrush x:Key="Phase1DangerBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+      <SolidColorBrush x:Key="Phase1DangerSoftBrush" Color="{ThemeResource SystemColorWindowColor}" />
+      <SolidColorBrush x:Key="Phase1SuccessBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+      <SolidColorBrush x:Key="Phase1FocusBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+      <!-- Not a system colour role: keep the earlier capture dimming so the selection still stands out. -->
+      <SolidColorBrush x:Key="Phase1ScrimBrush" Color="#8C000000" />
+
       <SolidColorBrush x:Key="Phase1SurfaceBrush" Color="{ThemeResource SystemColorWindowColor}" />
       <SolidColorBrush x:Key="Phase1TextBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
       <SolidColorBrush x:Key="Phase1SecondaryBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
@@ -39,44 +203,83 @@
       <SolidColorBrush x:Key="Phase1AccentBrush" Color="{ThemeResource SystemColorHighlightColor}" />
       <SolidColorBrush x:Key="Phase1AccentSoftBrush" Color="{ThemeResource SystemColorWindowColor}" />
       <SolidColorBrush x:Key="Phase1OnAccentBrush" Color="{ThemeResource SystemColorHighlightTextColor}" />
-      <SolidColorBrush x:Key="Phase1SuccessBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
       <SolidColorBrush x:Key="Phase1SuccessSoftBrush" Color="{ThemeResource SystemColorWindowColor}" />
       <SolidColorBrush x:Key="Phase1ErrorBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
       <SolidColorBrush x:Key="Phase1ErrorSoftBrush" Color="{ThemeResource SystemColorWindowColor}" />
     </ResourceDictionary>
   </ResourceDictionary.ThemeDictionaries>
 
-  <FontFamily x:Key="Phase1FontFamily">Segoe UI Variable</FontFamily>
+  <!-- Bundled OFL fonts. One family per weight file: a file-backed family only knows the faces in that file. -->
+  <FontFamily x:Key="Phase1SansRegularFontFamily">ms-appx:///Assets/Fonts/BeVietnamPro-Regular.ttf#Be Vietnam Pro, ms-appx:///Assets/Fonts/NotoSansJP-Regular.otf#Noto Sans JP, Segoe UI Variable</FontFamily>
+  <FontFamily x:Key="Phase1SansMediumFontFamily">ms-appx:///Assets/Fonts/BeVietnamPro-Medium.ttf#Be Vietnam Pro, ms-appx:///Assets/Fonts/NotoSansJP-Regular.otf#Noto Sans JP, Segoe UI Variable</FontFamily>
+  <FontFamily x:Key="Phase1SansSemiBoldFontFamily">ms-appx:///Assets/Fonts/BeVietnamPro-SemiBold.ttf#Be Vietnam Pro, ms-appx:///Assets/Fonts/NotoSansJP-Bold.otf#Noto Sans JP, Segoe UI Variable</FontFamily>
+  <FontFamily x:Key="Phase1SansBoldFontFamily">ms-appx:///Assets/Fonts/BeVietnamPro-Bold.ttf#Be Vietnam Pro, ms-appx:///Assets/Fonts/NotoSansJP-Bold.otf#Noto Sans JP, Segoe UI Variable</FontFamily>
+  <FontFamily x:Key="Phase1SansExtraBoldFontFamily">ms-appx:///Assets/Fonts/BeVietnamPro-ExtraBold.ttf#Be Vietnam Pro, ms-appx:///Assets/Fonts/NotoSansJP-Bold.otf#Noto Sans JP, Segoe UI Variable</FontFamily>
+  <!-- shortcut: Noto Sans JP ships Regular and Bold only (500 renders Regular, 600+ Bold); add Medium if readings look too light. -->
+  <FontFamily x:Key="Phase1JpRegularFontFamily">ms-appx:///Assets/Fonts/NotoSansJP-Regular.otf#Noto Sans JP, ms-appx:///Assets/Fonts/BeVietnamPro-Medium.ttf#Be Vietnam Pro, Yu Gothic UI</FontFamily>
+  <FontFamily x:Key="Phase1JpBoldFontFamily">ms-appx:///Assets/Fonts/NotoSansJP-Bold.otf#Noto Sans JP, ms-appx:///Assets/Fonts/BeVietnamPro-Bold.ttf#Be Vietnam Pro, Yu Gothic UI</FontFamily>
+  <FontFamily x:Key="Phase1MonoFontFamily">ms-appx:///Assets/Fonts/JetBrainsMono-SemiBold.ttf#JetBrains Mono, Cascadia Mono</FontFamily>
+  <!-- Earlier key name, used by the button styles. -->
+  <StaticResource x:Key="Phase1FontFamily" ResourceKey="Phase1SansSemiBoldFontFamily" />
+
+  <!-- Type scale (px). CharacterSpacing is in 1/1000 em. -->
+  <x:Double x:Key="Phase1HeroFontSize">40</x:Double>
+  <x:Double x:Key="Phase1HeroLineHeight">44</x:Double>
+  <x:Int32 x:Key="Phase1HeroCharacterSpacing">-20</x:Int32>
+  <x:Double x:Key="Phase1QueryFontSize">22</x:Double>
+  <x:Double x:Key="Phase1QueryLineHeight">30</x:Double>
+  <x:Int32 x:Key="Phase1QueryCharacterSpacing">-10</x:Int32>
+  <x:Double x:Key="Phase1AnswerFontSize">19</x:Double>
+  <x:Double x:Key="Phase1AnswerLineHeight">28</x:Double>
+  <x:Double x:Key="Phase1BodyFontSize">15</x:Double>
+  <x:Double x:Key="Phase1BodyLineHeight">22</x:Double>
+  <x:Double x:Key="Phase1LabelFontSize">13</x:Double>
+  <x:Double x:Key="Phase1LabelLineHeight">18</x:Double>
+  <x:Double x:Key="Phase1CaptionFontSize">12</x:Double>
+  <x:Double x:Key="Phase1CaptionLineHeight">16</x:Double>
+  <x:Double x:Key="Phase1HeadwordJpFontSize">28</x:Double>
+  <x:Double x:Key="Phase1HeadwordJpLineHeight">36</x:Double>
+  <x:Double x:Key="Phase1ReadingFontSize">13</x:Double>
+  <x:Double x:Key="Phase1ReadingLineHeight">18</x:Double>
+  <x:Double x:Key="Phase1KeyFontSize">11</x:Double>
+  <x:Double x:Key="Phase1KeyLineHeight">14</x:Double>
+  <!-- Earlier key names: translation = answer, button = label. -->
+  <StaticResource x:Key="Phase1TranslationFontSize" ResourceKey="Phase1AnswerFontSize" />
+  <StaticResource x:Key="Phase1TranslationLineHeight" ResourceKey="Phase1AnswerLineHeight" />
+  <StaticResource x:Key="Phase1ButtonFontSize" ResourceKey="Phase1LabelFontSize" />
+  <StaticResource x:Key="Phase1ButtonLineHeight" ResourceKey="Phase1LabelLineHeight" />
+  <x:Double x:Key="Phase1TitleFontSize">20</x:Double>
+  <x:Double x:Key="Phase1TitleLineHeight">28</x:Double>
+
+  <!-- Spacing: space-1 4 to space-6 32. -->
   <x:Double x:Key="Phase1Space0">0</x:Double>
   <x:Double x:Key="Phase1Space4">4</x:Double>
   <x:Double x:Key="Phase1Space8">8</x:Double>
   <x:Double x:Key="Phase1Space12">12</x:Double>
   <x:Double x:Key="Phase1Space16">16</x:Double>
-  <x:Double x:Key="Phase1PopupWidth">400</x:Double>
+  <x:Double x:Key="Phase1Space24">24</x:Double>
+  <x:Double x:Key="Phase1Space32">32</x:Double>
+
+  <!-- Radii. -->
+  <CornerRadius x:Key="Phase1RadiusSm">8</CornerRadius>
+  <CornerRadius x:Key="Phase1RadiusMd">14</CornerRadius>
+  <CornerRadius x:Key="Phase1RadiusLg">22</CornerRadius>
+  <!-- WinUI clamps an oversized radius per axis, so 999 draws an ellipse, not a capsule. Pills use half their fixed height instead. -->
+  <CornerRadius x:Key="Phase1RadiusPill">999</CornerRadius>
+
+  <!-- Shadow geometry; colours are in the theme dictionaries. -->
+  <x:Double x:Key="Phase1ShadowFloatBlur">64</x:Double>
+  <x:Double x:Key="Phase1ShadowFloatOffsetY">24</x:Double>
+  <x:Double x:Key="Phase1ShadowKeyOffsetY">1</x:Double>
+
+  <!-- Layout values of the current views, replaced as each view is rebuilt. -->
+  <x:Double x:Key="Phase1PopupWidth">380</x:Double>
   <x:Double x:Key="Phase1IconSize">20</x:Double>
   <x:Double x:Key="Phase1ActionMinHeight">32</x:Double>
-  <x:Double x:Key="Phase1TranslationFontSize">17</x:Double>
-  <x:Double x:Key="Phase1TranslationLineHeight">26</x:Double>
-  <x:Double x:Key="Phase1BodyFontSize">14</x:Double>
-  <x:Double x:Key="Phase1BodyLineHeight">21</x:Double>
-  <x:Double x:Key="Phase1CaptionFontSize">12</x:Double>
-  <x:Double x:Key="Phase1CaptionLineHeight">18</x:Double>
-  <x:Double x:Key="Phase1LabelFontSize">13</x:Double>
-  <x:Double x:Key="Phase1LabelLineHeight">20</x:Double>
-  <x:Double x:Key="Phase1ButtonFontSize">14</x:Double>
-  <x:Double x:Key="Phase1ButtonLineHeight">20</x:Double>
-  <x:Double x:Key="Phase1TitleFontSize">20</x:Double>
-  <x:Double x:Key="Phase1TitleLineHeight">28</x:Double>
-  <x:Double x:Key="Phase1ShadowAmbientBlur">3</x:Double>
-  <x:Double x:Key="Phase1ShadowAmbientOffsetY">1</x:Double>
-  <x:Double x:Key="Phase1ShadowDirectionalBlur">24</x:Double>
-  <x:Double x:Key="Phase1ShadowDirectionalOffsetY">8</x:Double>
   <Thickness x:Key="Phase1SurfacePadding">16</Thickness>
   <Thickness x:Key="Phase1ActionPadding">12,0</Thickness>
   <Thickness x:Key="Phase1StatusPadding">8</Thickness>
   <Thickness x:Key="Phase1BorderThickness">1</Thickness>
   <CornerRadius x:Key="Phase1SurfaceCornerRadius">8</CornerRadius>
   <CornerRadius x:Key="Phase1ControlCornerRadius">4</CornerRadius>
-  <Color x:Key="Phase1ShadowAmbientColor">#1A000000</Color>
-  <Color x:Key="Phase1ShadowDirectionalColor">#33000000</Color>
 </ResourceDictionary>

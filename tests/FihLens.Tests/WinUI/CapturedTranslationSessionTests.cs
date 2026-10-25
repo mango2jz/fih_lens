@@ -57,8 +57,8 @@ public sealed class CapturedTranslationSessionTests
         session.PopupShown();
         await session.LocalLookupCompletion;
         Assert.Equal("current selection", backend.InputText);
-        Assert.Equal("current selection", dictionary.Input);
-        Assert.Equal(1, dictionary.Calls);
+        // A region capture looks up the whole text, then each word for the word picker.
+        Assert.Equal(["current selection", "current", "selection"], dictionary.Inputs);
         Assert.Equal(1, capture.Calls);
         Assert.Equal(0, provider.Calls);
         var samePopup = session.Popup;
@@ -93,8 +93,7 @@ public sealed class CapturedTranslationSessionTests
         var dictionary = new Dictionary();
         backend.SetDictionaryAvailability(new DictionaryLookupService(dictionary), Source);
         await session.LocalLookupCompletion;
-        Assert.Equal("new input", dictionary.Input);
-        Assert.Equal(1, dictionary.Calls);
+        Assert.Equal(["new input", "new", "input"], dictionary.Inputs);
         Assert.Equal(0, provider.Calls);
     }
 
@@ -206,6 +205,89 @@ public sealed class CapturedTranslationSessionTests
         Assert.Equal(0, provider.Calls);
     }
 
+    [Fact]
+    public async Task WordPickerSelectsFirstFoundWordAndSelectionSwapsCards()
+    {
+        var clipboard = new Clipboard();
+        using var session = await CaptureWords("Tom can run fast,\nToday", clipboard, "can", "run", "fast");
+        var popup = session.Popup;
+
+        Assert.True(popup.ShowWordPicker);
+        Assert.False(popup.IsWholePhrase);
+        Assert.Equal(["Tom", "can", "run", "fast", "Today"], popup.WordChoices.Select(choice => choice.Word.Text));
+        Assert.Equal([false, true, true, true, false], popup.WordChoices.Select(choice => choice.HasEntry));
+        Assert.Equal("Tom, no dictionary entry", popup.WordChoices[0].AutomationName);
+        Assert.Equal((",", true), (popup.WordChoices[3].Word.Trailing, popup.WordChoices[3].Word.LineBreakAfter));
+        Assert.Equal("3 of 5 words found", popup.WordsFoundText);
+        Assert.Equal(1, popup.SelectedWordIndex);
+        Assert.Equal("can", Assert.Single(popup.DictionaryCards).Headword);
+        Assert.False(popup.HasDictionaryStatus);
+
+        Assert.False(popup.SelectWord(0));
+        Assert.True(popup.SelectWord(2));
+        Assert.Equal("run", Assert.Single(popup.DictionaryCards).Headword);
+        Assert.True(popup.MoveWordSelection(1));
+        Assert.Equal("fast", popup.SelectedWord!.Word.Text);
+        Assert.False(popup.MoveWordSelection(1));
+        Assert.True(popup.MoveWordSelection(-1));
+        Assert.True(popup.MoveWordSelection(-1));
+        Assert.Equal("can", popup.SelectedWord!.Word.Text);
+        Assert.Equal("Tom can run fast,\nToday", popup.OriginalText);
+
+        await popup.CopyCommand.ExecuteAsync(null);
+        Assert.Equal("can", clipboard.Text);
+        await popup.CopyOriginalCommand.ExecuteAsync(null);
+        Assert.Equal("Tom can run fast,\nToday", clipboard.Text);
+    }
+
+    [Fact]
+    public async Task WordPickerShowsWholePhraseMatchUntilSplit()
+    {
+        using var session = await CaptureWords("a piece of cake!", null, "a piece of cake", "cake");
+        var popup = session.Popup;
+
+        Assert.True(popup.IsWholePhrase);
+        var chip = Assert.Single(popup.WordChoices);
+        Assert.Equal(("a piece of cake", "!"), (chip.Word.Text, chip.Word.Trailing));
+        Assert.Equal("Whole phrase", popup.WordsFoundText);
+        Assert.Equal("a piece of cake", Assert.Single(popup.DictionaryCards).Headword);
+        Assert.False(popup.ShowWordMoveKeys);
+
+        popup.SplitIntoWordsCommand.Execute(null);
+        Assert.False(popup.IsWholePhrase);
+        Assert.Equal(4, popup.WordChoices.Count);
+        Assert.Equal("cake", popup.SelectedWord!.Word.Text);
+        Assert.Equal("cake", Assert.Single(popup.DictionaryCards).Headword);
+    }
+
+    [Fact]
+    public async Task WordPickerWithNoEntriesSelectsNothingAndOffersAskAi()
+    {
+        using var session = await CaptureWords("Kubernetes autoscaler v2", null, "run");
+        var popup = session.Popup;
+
+        Assert.True(popup.ShowWordPicker);
+        Assert.Null(popup.SelectedWord);
+        Assert.Equal(-1, popup.SelectedWordIndex);
+        Assert.True(popup.HasNoWordEntries);
+        Assert.False(popup.ShowLocalBadge);
+        Assert.Equal("0 of 3 words found", popup.WordsFoundText);
+        Assert.Empty(popup.DictionaryCards);
+        Assert.False(popup.IsErrorStatus);
+        Assert.True(popup.AskAiCommand.CanExecute(null));
+        Assert.False(popup.MoveWordSelection(1));
+    }
+
+    private static async Task<CapturedTranslationSession> CaptureWords(string text, IClipboardWriter? clipboard, params string[] headwords)
+    {
+        var backend = new MainWindowViewModel(new TranslationService(new Provider()), "Fake");
+        backend.SetDictionaryAvailability(new DictionaryLookupService(new HeadwordDictionary(headwords)), Source);
+        var session = NewSession(new Capture(RegionTextCaptureResult.Success(text)), backend, clipboard);
+        session.Confirm(Request);
+        await session.OverlayRetiredAsync();
+        return session;
+    }
+
     private static CapturedTranslationSession NewSession(IRegionTextCapture capture, MainWindowViewModel backend,
         IClipboardWriter? clipboard = null) => new(capture, action => { action(); return Task.FromResult(true); }, backend, clipboard ?? new Clipboard());
     private static readonly RegionTextCaptureRequest Request = new(new CaptureSourceSnapshot("display", new(0, 0, 100, 100), "topology"), new(1, 1, 20, 20));
@@ -227,10 +309,21 @@ public sealed class CapturedTranslationSessionTests
     {
         public int Calls;
         public string? Input;
+        public List<string> Inputs = [];
         public Task<DictionaryLookupResult> LookupAsync(string input, CancellationToken cancellationToken = default)
         {
-            Calls++; Input = input;
+            Calls++; Input = input; Inputs.Add(input);
             return Task.FromResult(new DictionaryLookupResult(input, Source, Array.Empty<DictionaryEntry>()));
+        }
+    }
+    private sealed class HeadwordDictionary(string[] headwords) : IDictionaryLookup
+    {
+        public Task<DictionaryLookupResult> LookupAsync(string input, CancellationToken cancellationToken = default)
+        {
+            string key = DictionaryLookupService.NormalizeInput(input);
+            DictionaryEntry[] entries = headwords.Contains(key, StringComparer.OrdinalIgnoreCase)
+                ? [new DictionaryEntry(key, ["nghĩa"], null, null, "source", "article", "origin")] : [];
+            return Task.FromResult(new DictionaryLookupResult(input, Source, entries));
         }
     }
     private sealed class Provider : ITranslationProvider

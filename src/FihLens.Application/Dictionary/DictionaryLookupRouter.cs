@@ -26,9 +26,15 @@ public sealed class DictionaryLookupRouter
                 "Local dictionary unavailable. Open Dictionaries to view setup options.");
 
     public Task<DictionaryLookupResult> LookupAsync(string input, Language source, Language target,
+        CancellationToken cancellationToken = default) => Service(source, target).LookupAsync(input, cancellationToken);
+
+    // shortcut: only English splits into words; Japanese has no spaces, so it stays one candidate until longest-match splitting against JMdict exists.
+    public Task<DictionaryTextLookupResult> LookupWordsAsync(string input, Language source, Language target,
         CancellationToken cancellationToken = default) =>
-        (GetAvailability(source, target).Service ?? throw new InvalidOperationException("Local dictionary unavailable for this direction."))
-            .LookupAsync(input, cancellationToken);
+        Service(source, target).LookupWordsAsync(input, splitWords: source == Language.English, cancellationToken);
+
+    private DictionaryLookupService Service(Language source, Language target) =>
+        GetAvailability(source, target).Service ?? throw new InvalidOperationException("Local dictionary unavailable for this direction.");
 
     public static bool SupportsPair(Language source, Language target) =>
         (source, target) is (Language.English, Language.Vietnamese) or (Language.Japanese, Language.English);

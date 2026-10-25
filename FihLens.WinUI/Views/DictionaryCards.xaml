@@ -2,26 +2,70 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:vm="using:FihLens.WinUI.ViewModels">
+  <!-- DictionaryCard part (screens/dictionary-card): local facts only, never AI output. -->
   <ItemsControl ItemsSource="{x:Bind Items, Mode=OneWay}">
+    <ItemsControl.ItemsPanel>
+      <ItemsPanelTemplate><StackPanel Spacing="12" /></ItemsPanelTemplate>
+    </ItemsControl.ItemsPanel>
     <ItemsControl.ItemTemplate>
       <DataTemplate x:DataType="vm:DictionaryCardViewModel">
-        <StackPanel Spacing="4" Margin="0,8">
-          <Grid ColumnSpacing="8">
-            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-            <TextBlock Text="{x:Bind Headword}" FontWeight="SemiBold" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
-            <Button Grid.Column="1" Command="{x:Bind Pronunciation.SpeakCommand}" CommandParameter="{x:Bind SpeechText}"
-                    AutomationProperties.Name="{x:Bind SpeechAutomationName}" ToolTipService.ToolTip="{x:Bind SpeechUnavailableReason}">
-              <SymbolIcon Symbol="Volume"/>
-            </Button>
-          </Grid>
-          <TextBlock Text="{x:Bind WrittenFormsText}" TextWrapping="Wrap" IsTextSelectionEnabled="True" AutomationProperties.Name="Applicable written forms and usage labels"/>
-          <TextBlock Text="{x:Bind ReadingsText}" TextWrapping="Wrap" IsTextSelectionEnabled="True" AutomationProperties.Name="Dictionary readings"/>
-          <TextBlock Text="{x:Bind PartOfSpeech}" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
-          <TextBlock Text="{x:Bind SensesText}" TextWrapping="Wrap" IsTextSelectionEnabled="True" AutomationProperties.Name="Sourced dictionary senses"/>
-          <TextBlock Text="{x:Bind Example}" TextWrapping="Wrap" IsTextSelectionEnabled="True"/>
-          <TextBlock Text="{x:Bind SpeechUnavailableReason}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
-          <TextBlock Text="{x:Bind Provenance}" TextWrapping="Wrap" IsTextSelectionEnabled="True" Opacity="0.75"/>
-        </StackPanel>
+        <Border Style="{StaticResource Phase1CardStyle}">
+          <StackPanel Spacing="12">
+            <Grid ColumnSpacing="8">
+              <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+              <StackPanel Orientation="Horizontal" Spacing="12">
+                <TextBlock Text="{x:Bind Headword}" Style="{StaticResource Phase1HeadwordJpTextStyle}" Visibility="{x:Bind IsJapanese}" VerticalAlignment="Bottom" />
+                <TextBlock Text="{x:Bind Headword}" Style="{StaticResource Phase1HeadwordLatinTextStyle}" Visibility="{x:Bind IsLatin}" VerticalAlignment="Bottom" />
+                <TextBlock Text="{x:Bind Reading}" Style="{StaticResource Phase1ReadingTextStyle}" VerticalAlignment="Bottom" Margin="0,0,0,6" Visibility="{x:Bind HasReading}"
+                           AutomationProperties.Name="Dictionary reading" />
+                <Border Style="{StaticResource Phase1PosBadgeStyle}" VerticalAlignment="Bottom" Margin="0,0,0,6" Visibility="{x:Bind HasPartOfSpeech}">
+                  <TextBlock Text="{x:Bind PartOfSpeech}" Style="{StaticResource Phase1CaptionTextStyle}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                </Border>
+              </StackPanel>
+              <Button Grid.Column="1" Style="{StaticResource Phase1SmallGhostIconButtonStyle}" VerticalAlignment="Top"
+                      Command="{x:Bind Pronunciation.SpeakCommand}" CommandParameter="{x:Bind SpeechText}"
+                      AutomationProperties.Name="{x:Bind SpeechAutomationName}" ToolTipService.ToolTip="{x:Bind SpeechHint}">
+                <Path Style="{StaticResource Phase1StrokeIconStyle}" Stroke="{ThemeResource Phase1InkMutedBrush}"
+                      Data="M3.5 8H6.5L10.5 4.5V15.5L6.5 12H3.5V8ZM13.5 7.5C14.5 8.6 14.5 11.4 13.5 12.5M16 5C18 7.5 18 12.5 16 15" />
+              </Button>
+            </Grid>
+            <TextBlock Text="{x:Bind WrittenFormsText}" Style="{StaticResource Phase1CaptionTextStyle}" Visibility="{x:Bind HasWrittenForms}"
+                       AutomationProperties.Name="Applicable written forms and usage labels" />
+            <TextBlock Text="{x:Bind ReadingsText}" Style="{StaticResource Phase1CaptionTextStyle}" Visibility="{x:Bind HasReadings}"
+                       AutomationProperties.Name="Dictionary readings" />
+            <ItemsControl ItemsSource="{x:Bind Senses}" AutomationProperties.Name="Sourced dictionary senses">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate><StackPanel Spacing="8" /></ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:DictionarySense">
+                  <Grid ColumnSpacing="8">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="22"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                    <Border Width="20" Height="20" Margin="0,1,0,0" CornerRadius="6" VerticalAlignment="Top" Background="{ThemeResource Phase1KoiSoftBrush}">
+                      <TextBlock Text="{x:Bind Number}" FontFamily="{StaticResource Phase1SansBoldFontFamily}" FontSize="11" FontWeight="Bold"
+                                 Foreground="{ThemeResource Phase1KoiInkBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <StackPanel Grid.Column="1">
+                      <TextBlock Text="{x:Bind Text}" Style="{StaticResource Phase1BodyTextStyle}" />
+                      <TextBlock Text="{x:Bind Note}" Style="{StaticResource Phase1CaptionTextStyle}" Visibility="{x:Bind HasNote}" />
+                    </StackPanel>
+                  </Grid>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <TextBlock Text="{x:Bind Example}" Style="{StaticResource Phase1BodyTextStyle}" Foreground="{ThemeResource Phase1InkMutedBrush}" Visibility="{x:Bind HasExample}" />
+            <TextBlock Text="{x:Bind SpeechUnavailableReason}" Style="{StaticResource Phase1CaptionTextStyle}" Visibility="{x:Bind HasSpeechUnavailableReason}"
+                       AutomationProperties.LiveSetting="Polite" />
+            <Border Style="{StaticResource Phase1CardFootStyle}">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <ContentControl Style="{StaticResource Phase1LocalBadgeStyle}" Content="On this device" />
+                <TextBlock Text="{x:Bind SourceId}" Style="{StaticResource Phase1CaptionTextStyle}" VerticalAlignment="Center" />
+                <HyperlinkButton Content="Source &amp; license" Style="{StaticResource Phase1LinkButtonStyle}" VerticalAlignment="Center"
+                                 Click="Source_Click" Tag="{x:Bind}" AutomationProperties.Name="Dictionary source and license" />
+              </StackPanel>
+            </Border>
+          </StackPanel>
+        </Border>
       </DataTemplate>
     </ItemsControl.ItemTemplate>
   </ItemsControl>

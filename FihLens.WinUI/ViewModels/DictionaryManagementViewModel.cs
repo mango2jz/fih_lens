@@ -23,6 +23,25 @@ public sealed record DictionaryPackRowViewModel(DictionaryPackStatus Status, boo
     public bool CanInstall => Status.Definition.DownloadUri is not null && Status.State is
         DictionaryPackState.NotInstalled or DictionaryPackState.Failed or DictionaryPackState.Unavailable;
     public bool CanRemove => HasInstallation && Status.State != DictionaryPackState.RemovalPendingRestart;
+
+    // One switch per direction: on while installed or waiting for a restart to enable.
+    public string Flag => $"{TranslationPopupViewModel.LanguageCode(Status.Definition.SourceLanguage)} → {TranslationPopupViewModel.LanguageCode(Status.Definition.TargetLanguage)}";
+    public string DirectionName => $"{Status.Definition.SourceLanguage} → {Status.Definition.TargetLanguage}";
+    public bool IsOn => HasInstallation && Status.State != DictionaryPackState.RemovalPendingRestart;
+    public bool IsAvailable => Status.Definition.DownloadUri is not null || HasInstallation;
+    public bool CanToggle => IsOn ? CanRemove : CanInstall;
+    public bool NeedsRestart => Status.State is DictionaryPackState.InstallPendingRestart or DictionaryPackState.UpdatePendingRestart
+        or DictionaryPackState.RemovalPendingRestart;
+    public double RowOpacity => IsAvailable ? 1 : 0.5;
+    public string Summary => !IsAvailable ? "Not available offline yet · Ask AI still works" : Status.Message ?? Status.State switch
+    {
+        DictionaryPackState.Installed => $"{Status.Definition.Name} · installed",
+        DictionaryPackState.InstallPendingRestart => $"{Status.Definition.Name} · installed",
+        DictionaryPackState.UpdatePendingRestart => $"{Status.Definition.Name} · update ready",
+        DictionaryPackState.RemovalPendingRestart => $"{Status.Definition.Name} · removal scheduled",
+        DictionaryPackState.Failed => $"{Status.Definition.Name} · last install failed",
+        _ => $"{Status.Definition.Name} · {Status.Definition.DownloadBytes / 1_048_576.0:0.#} MB download"
+    };
 }
 
 public partial class DictionaryManagementViewModel : ObservableObject
@@ -51,7 +70,7 @@ public partial class DictionaryManagementViewModel : ObservableObject
     [ObservableProperty]
     public partial DictionaryPackRowViewModel? SelectedPack { get; set; }
     [ObservableProperty]
-    public partial string StatusText { get; set; } = "Choose a dictionary to install. Skipping keeps the app usable.";
+    public partial string StatusText { get; set; } = "Switching a direction on downloads it. Closing keeps the app usable.";
     [ObservableProperty]
     public partial string LegacyStatusText { get; set; } = "English → Vietnamese · Checking existing approved local data.";
     [ObservableProperty]
@@ -67,9 +86,30 @@ public partial class DictionaryManagementViewModel : ObservableObject
         CancelCommand.NotifyCanExecuteChanged();
     }
 
-    public void SetLegacySource(DictionarySource? source, string? reason) => LegacyStatusText = source is null
+    [ObservableProperty]
+    public partial bool LegacyInstalled { get; set; }
+    public string LegacySummary => LegacyInstalled ? "Installed · managed by the existing setup" : "Not installed";
+
+    partial void OnLegacyInstalledChanged(bool value) => OnPropertyChanged(nameof(LegacySummary));
+
+    /// <summary>The switch on a pack row: on installs, off schedules removal. False when the pack did not reach that state.</summary>
+    public async Task<bool> SetPackEnabledAsync(DictionaryPackRowViewModel pack, bool enabled)
+    {
+        ArgumentNullException.ThrowIfNull(pack);
+        if (_closed || IsBusy || enabled == pack.IsOn || !pack.CanToggle) return false;
+        SelectedPack = pack;
+        await (enabled ? InstallCommand : RemoveCommand).ExecuteAsync(null);
+        // RunAsync swallows failures and cancellation, so check the reloaded row rather than trusting the command.
+        return Packs.Any(row => row.PackId == pack.PackId && row.IsOn == enabled);
+    }
+
+    public void SetLegacySource(DictionarySource? source, string? reason)
+    {
+        LegacyInstalled = source is not null;
+        LegacyStatusText = source is null
         ? $"English → Vietnamese · {reason ?? "Existing approved data is not installed; use the original dictionary setup."}"
         : $"English → Vietnamese · {source.Name} · {source.QualityStatus}\nLicense: {source.License}\nSource: {source.SourceUrl}\nManaged by the existing setup; this dialog does not remove it.";
+    }
 
     public Task<bool> ShouldOfferSetupAsync(CancellationToken token = default) => _manager is null
         ? Task.FromResult(false) : ShouldOfferCoreAsync(token);

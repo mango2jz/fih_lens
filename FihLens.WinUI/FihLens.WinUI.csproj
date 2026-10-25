@@ -25,6 +25,8 @@
     <Content Include="Assets\StoreLogo.png" />
     <Content Include="Assets\Wide310x150Logo.scale-200.png" />
     <Content Include="Assets\FihLens.ico" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Bundled SIL OFL fonts and their licences (docs/design/spotlight). -->
+    <Content Include="Assets\Fonts\*.ttf;Assets\Fonts\*.otf;Assets\Fonts\*.txt" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

@@ -21,6 +21,50 @@ public sealed class DictionaryManagementViewModelTests
     }
 
     [Fact]
+    public async Task UnpublishedDirectionIsDimmedAndItsSwitchDoesNothing()
+    {
+        var manager = new Manager(downloadable: false);
+        var model = new DictionaryManagementViewModel(manager);
+        await model.LoadAsync();
+        var pack = Assert.Single(model.Packs);
+
+        Assert.Equal("JA → EN", pack.Flag);
+        Assert.False(pack.IsAvailable);
+        Assert.Contains("Not available offline", pack.Summary);
+        Assert.False(await model.SetPackEnabledAsync(pack, true));
+        Assert.Equal(0, manager.InstallCalls);
+    }
+
+    [Fact]
+    public async Task SwitchingOnADirectionInstallsIt()
+    {
+        var manager = new Manager(downloadable: true, delayInstall: true);
+        var model = new DictionaryManagementViewModel(manager);
+        await model.LoadAsync();
+        var pack = Assert.Single(model.Packs);
+        Assert.False(pack.IsOn);
+
+        var work = model.SetPackEnabledAsync(pack, true);
+        await manager.Started.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        manager.ReleaseInstall.SetResult();
+
+        Assert.True(await work.WaitAsync(TimeSpan.FromSeconds(2)));
+        Assert.Equal(1, manager.InstallCalls);
+    }
+
+    [Fact]
+    public async Task FailedInstallLeavesTheSwitchOff()
+    {
+        var manager = new Manager(downloadable: true, failInstall: true);
+        var model = new DictionaryManagementViewModel(manager);
+        await model.LoadAsync();
+
+        Assert.False(await model.SetPackEnabledAsync(Assert.Single(model.Packs), true));
+        Assert.Equal(1, manager.InstallCalls);
+        Assert.False(Assert.Single(model.Packs).IsOn);
+    }
+
+    [Fact]
     public async Task ClosingDuringExplicitInstallCancelsAndDrainsBeforeDismissal()
     {
         var manager = new Manager(downloadable: true);
@@ -126,9 +170,11 @@ public sealed class DictionaryManagementViewModelTests
         Assert.DoesNotContain("private-path", model.StatusText);
     }
 
-    private sealed class Manager(bool downloadable, bool failDismissal = false, bool delayDismissal = false, bool delayInstall = false) : IDictionaryPackManager
+    private sealed class Manager(bool downloadable, bool failDismissal = false, bool delayDismissal = false, bool delayInstall = false,
+        bool failInstall = false) : IDictionaryPackManager
     {
         public bool Dismissed { get; private set; }
+        public bool Installed { get; private set; }
         public int InstallCalls { get; private set; }
         public int DismissalCalls { get; private set; }
         public CancellationToken Token { get; private set; }
@@ -139,14 +185,17 @@ public sealed class DictionaryManagementViewModelTests
         public Task<IReadOnlyList<DictionaryPackStatus>> GetStatusAsync(CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<DictionaryPackStatus>>([new(new("jmdict-ja-en", "1", "JMdict", Language.Japanese,
                 Language.English, "CC-BY-SA-4.0", "https://example.test/source", "1", 100, 500,
-                new string('0', 64), new string('1', 64), downloadable ? new Uri("https://example.test/pack.zip") : null), DictionaryPackState.NotInstalled)]);
+                new string('0', 64), new string('1', 64), downloadable ? new Uri("https://example.test/pack.zip") : null),
+                Installed ? DictionaryPackState.InstallPendingRestart : DictionaryPackState.NotInstalled)]);
         public async Task InstallAsync(string packId, IProgress<DictionaryPackProgress>? progress = null, CancellationToken cancellationToken = default)
         {
             InstallCalls++;
             Token = cancellationToken;
             Started.SetResult();
+            if (failInstall) throw new IOException("download failed");
             if (delayInstall) await ReleaseInstall.Task;
             else await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            Installed = true;
         }
         public Task ScheduleRemovalAsync(string packId, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task<bool> GetSetupDismissedAsync(CancellationToken cancellationToken = default) => Task.FromResult(Dismissed);

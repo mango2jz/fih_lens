@@ -7,12 +7,18 @@ using FihLens.Windows.Windowing;
 using FihLens.Windows.Clipboard;
 using FihLens.WinUI.DesignPreview;
 using FihLens.Application.Dictionary;
+using FihLens.Core.Enums;
 using FihLens.Core.Models;
+using FihLens.WinUI.Windowing;
+using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Windowing;
+using Windows.Graphics;
 using Windows.System;
 using System.ComponentModel;
+using System.Runtime.InteropServices;
 using NativeBackgroundShell = FihLens.Windows.Shell.WindowsBackgroundShell;
 using NativeShellCommand = FihLens.Windows.Shell.BackgroundShellCommand;
 
@@ -20,6 +26,17 @@ namespace FihLens.WinUI;
 
 public sealed partial class MainWindow : Window
 {
+    private enum Detail { None, Dictionary, Ai }
+    private const double BarWidth = 680;
+    // The dictionary dialog needs more room than the bar; the window grows while it is open.
+    private const double DialogHeight = 640;
+    private const double DetailMaxHeight = 560, DetailMinHeight = 120;
+    private const string CopiedMessage = "Copied.";
+    // A short answer (a word or phrase) takes the hero size; a sentence takes the answer size.
+    private const int HeroMaxLength = 32;
+    private Detail _detail;
+    private bool _dialogOpen;
+    private readonly Microsoft.UI.Dispatching.DispatcherQueueTimer _lookupTimer;
     private readonly List<Phase1Session> _previewSessions = new();
     private bool _closing;
     private bool _allowClose;
@@ -58,9 +75,33 @@ public sealed partial class MainWindow : Window
         _dictionaryPacks = dictionaryPacks;
         _selectedTextCapture = selectedTextCapture;
         _shellController = new(ShowLauncher, RequestRegionCapture, BeginExit);
+        ViewModel.InputText = "";
         InitializeComponent();
+        // Borderless, always on top, out of the taskbar and Alt+Tab: shown by the hotkey, tray or a second launch.
+        var presenter = (OverlappedPresenter)AppWindow.Presenter;
+        presenter.SetBorderAndTitleBar(false, false);
+        presenter.IsResizable = false;
+        presenter.IsMaximizable = false;
+        presenter.IsMinimizable = false;
+        AppWindow.IsShownInSwitchers = false;
+        _lookupTimer = DispatcherQueue.CreateTimer();
+        _lookupTimer.Interval = TimeSpan.FromMilliseconds(150);
+        _lookupTimer.IsRepeating = false;
+        _lookupTimer.Tick += LookupTimer_Tick;
+        // Status lines take no space while empty.
+        foreach (var status in new[] { PairStatus, ShellStatus, CaptureStatus, PronunciationStatus })
+            status.RegisterPropertyChangedCallback(TextBlock.TextProperty, (line, _) => line.SetValue(UIElement.VisibilityProperty, Shown(((TextBlock)line).Text)));
         ((FrameworkElement)Content).Loaded += LauncherLoaded;
+        BarRoot.SizeChanged += BarRoot_SizeChanged;
+        WindowRoot.PreviewKeyDown += Root_PreviewKeyDown;
+        WindowRoot.KeyDown += Root_KeyDown;
+        ResultsList.PreviewKeyDown += ResultsList_PreviewKeyDown;
+        Activated += Launcher_Activated;
         RefreshDisplays();
+        UpdateBody();
+        UpdateAiDetail();
+        ShowTabPanel();
+        ViewModel.AskAiCommand.PropertyChanged += AskAiCommand_PropertyChanged;
         Closed += MainWindow_Closed;
         AppWindow.Closing += AppWindow_Closing;
         ViewModel.PropertyChanged += LauncherBackendChanged;
@@ -95,9 +136,10 @@ public sealed partial class MainWindow : Window
     public void SetShellUnavailable(int? errorCode)
     {
         _shellController.SetAvailability(false, errorCode, false, errorCode);
-        ShellStatus.Text = "The background shell could not start. Keep this window open or use Exit to quit.";
+        ShellStatus.Text = "The tray icon and hotkey could not start. FIH Lens stays open; use Exit to quit.";
         RetryHotkeyButton.IsEnabled = false;
         RetryShellButton.IsEnabled = false;
+        ExitButton.Visibility = Visibility.Visible;
     }
 
     public void ReopenFromActivation() => _shellController.Execute(ShellCommand.Open);
@@ -145,7 +187,9 @@ public sealed partial class MainWindow : Window
         if (_shell is null) return;
         _shellController.SetAvailability(_shell.IsHotkeyRegistered, _shell.HotkeyErrorCode,
             _shell.IsTrayAvailable, _shell.TrayErrorCode);
-        if ((!_shell.IsTrayAvailable || _shell.TrayErrorCode is not null) && _hiddenToTray) ShowLauncher();
+        bool trayFailed = !_shell.IsTrayAvailable || _shell.TrayErrorCode is not null;
+        if (_hiddenToTray && !_shellController.CanHide(!trayFailed, _shell.IsHotkeyRegistered, false)) ShowLauncher();
+        ExitButton.Visibility = trayFailed ? Visibility.Visible : Visibility.Collapsed;
         if (_shellController.IsStopping)
         {
             ShellStatus.Text = _shellController.ExitFailed
@@ -155,15 +199,13 @@ public sealed partial class MainWindow : Window
         else
         {
             var failures = new List<string>();
-            if (!_shell.IsTrayAvailable || _shell.TrayErrorCode is not null)
-                failures.Add($"Tray shell needs attention (Windows error {_shell.TrayErrorCode?.ToString() ?? "unknown"}). FIH Lens stays visible; Retry shell to try again.");
+            if (trayFailed)
+                failures.Add($"The tray icon needs attention (Windows error {_shell.TrayErrorCode?.ToString() ?? "unknown"}). Retry tray, or use Exit to quit.");
             if (!_shell.IsHotkeyRegistered)
                 failures.Add(_shell.HotkeyErrorCode == 1409
                     ? $"{NativeBackgroundShell.HotkeyLabel} is already in use. Selected-text capture is unavailable; select a screen region here or from the tray. Retry hotkey when it is free."
                     : $"{NativeBackgroundShell.HotkeyLabel} could not be registered (Windows error {_shell.HotkeyErrorCode?.ToString() ?? "unknown"}). Select a screen region here or from the tray; Retry hotkey.");
-            ShellStatus.Text = failures.Count == 0
-                ? $"{NativeBackgroundShell.HotkeyLabel} captures selected text. Select a screen region here or from the tray. Close hides FIH Lens while the tray icon is available; use Exit to quit."
-                : string.Join(" ", failures);
+            ShellStatus.Text = string.Join(" ", failures);
         }
         RetryHotkeyButton.IsEnabled = !_shell.IsHotkeyRegistered && !_shellController.IsStopping;
         RetryShellButton.IsEnabled = (!_shell.IsHotkeyRegistered || !_shell.IsTrayAvailable ||
@@ -177,12 +219,80 @@ public sealed partial class MainWindow : Window
             ShellStatus.Text = _shellController.ExitFailed
                 ? "FIH Lens could not finish closing. Use Exit or Close to retry cleanup."
                 : "FIH Lens is closing. New captures are unavailable.";
-        _hiddenToTray = false;
-        if (AppWindow.Presenter is OverlappedPresenter presenter && presenter.State == OverlappedPresenterState.Minimized)
-            presenter.Restore();
-        AppWindow.Show();
-        Activate();
+        RaiseLauncher();
     }
+
+    private void RaiseLauncher()
+    {
+        _hiddenToTray = false;
+        if (AppWindow.Presenter is OverlappedPresenter presenter)
+        {
+            if (presenter.State == OverlappedPresenterState.Minimized) presenter.Restore();
+            PlaceLauncher(onCursorDisplay: true);
+            AppWindow.Show();
+            PinOnTop(presenter);
+        }
+        else AppWindow.Show();
+        Activate();
+        InputBox.Focus(FocusState.Programmatic);
+        InputBox.SelectAll();
+    }
+
+    // Activation is refused while another app is foreground; topmost still raises the bar above it.
+    // The toggle re-applies topmost, which does not stick when set before the window is first shown.
+    private static void PinOnTop(OverlappedPresenter presenter)
+    {
+        presenter.IsAlwaysOnTop = false;
+        presenter.IsAlwaysOnTop = true;
+    }
+
+    private bool HideLauncher()
+    {
+        bool trayAvailable = _shell is { IsTrayAvailable: true, TrayErrorCode: null };
+        if (_closing || !AppWindow.IsVisible ||
+            !_shellController.CanHide(trayAvailable, _shell?.IsHotkeyRegistered == true, !_dictionaryDialogTask.IsCompleted)) return false;
+        InvalidateSelectedCapture();
+        _hiddenToTray = true;
+        AppWindow.Hide();
+        return true;
+    }
+
+    private void Launcher_Activated(object sender, WindowActivatedEventArgs args)
+    {
+        if (args.WindowActivationState == WindowActivationState.Deactivated) HideLauncher();
+    }
+
+    private void BarRoot_SizeChanged(object sender, SizeChangedEventArgs args) => PlaceLauncher(onCursorDisplay: false);
+
+    private void PlaceLauncher(bool onCursorDisplay)
+    {
+        if (Content.XamlRoot is not { } root) return;
+        try
+        {
+            var display = onCursorDisplay && GetCursorPos(out var cursor)
+                ? DisplayArea.GetFromPoint(cursor, DisplayAreaFallback.Primary)
+                : DisplayArea.GetFromWindowId(AppWindow.Id, DisplayAreaFallback.Primary);
+            var work = display.WorkArea;
+            // The Canvas root never limits the bar, so cap the detail pane to what the work area leaves.
+            double spare = work.Height / root.RasterizationScale - BarRoot.ActualHeight;
+            double current = DetailPanel.Visibility == Visibility.Visible ? DetailPanel.ActualHeight : DetailPanel.MaxHeight;
+            DetailPanel.MaxHeight = Math.Clamp(current + spare, DetailMinHeight, DetailMaxHeight);
+            double height = Math.Max(BarRoot.ActualHeight, _dialogOpen ? DialogHeight : 0);
+            if (height <= 0) return;
+            var bounds = PopupPlacement.CalculateSpotlight(new PixelRect(work.X, work.Y, work.Width, work.Height),
+                BarWidth, height, root.RasterizationScale);
+            AppWindow.MoveAndResize(new RectInt32(bounds.X, bounds.Y, bounds.Width, bounds.Height));
+            BarRoot.Width = bounds.Width / root.RasterizationScale;
+        }
+        catch (Exception exception)
+        {
+            System.Diagnostics.Debug.WriteLine($"Launcher placement exceptionType={exception.GetType().FullName} hresult=0x{exception.HResult:X8}");
+        }
+    }
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GetCursorPos(out PointInt32 point);
 
     private void StartSelectedTextCapture(SelectedTextSource source)
     {
@@ -244,6 +354,7 @@ public sealed partial class MainWindow : Window
             session = new CapturedTranslationSession(backend, new WindowsClipboardWriter());
             if (!session.AdoptInput(text)) throw new InvalidOperationException("Selected input was not accepted.");
             popup = new Phase1Session(session.Popup, AppWindow, source.Origin);
+            session.Popup.SetOpenDetail(() => ExplainCapture(session));
             _capturePopups.Add(popup, session);
             popupOwnsBackend = true;
             popup.Closed += CapturePopupClosed;
@@ -286,12 +397,9 @@ public sealed partial class MainWindow : Window
         if (_closing || !ReferenceEquals(_activeSelectedCapture, attempt) || attempt.IsClosed) return;
         CaptureStatus.Text = $"{SelectedCaptureMessage(outcome)} Select a screen region or cancel.";
         SelectRegionButton.IsEnabled = true;
+        OfferRegionButton.Visibility = Visibility.Visible;
         CancelCaptureButton.IsEnabled = true;
-        _hiddenToTray = false;
-        if (AppWindow.Presenter is OverlappedPresenter presenter && presenter.State == OverlappedPresenterState.Minimized)
-            presenter.Restore();
-        AppWindow.Show();
-        Activate();
+        RaiseLauncher();
     }
 
     private void ReportSelectedCaptureFailure(SelectedTextCaptureOutcome outcome)
@@ -327,13 +435,267 @@ public sealed partial class MainWindow : Window
         active.Dispose();
         SelectRegionButton.IsEnabled = true;
         CancelCaptureButton.IsEnabled = false;
+        OfferRegionButton.Visibility = Visibility.Collapsed;
     }
 
     private void LauncherBackendChanged(object? sender, PropertyChangedEventArgs args)
     {
         if (args.PropertyName is nameof(MainWindowViewModel.SourceLanguage) or nameof(MainWindowViewModel.TargetLanguage))
             InvalidateSelectedCapture();
+        if (args.PropertyName is nameof(MainWindowViewModel.InputText) or nameof(MainWindowViewModel.SourceLanguage)
+            or nameof(MainWindowViewModel.TargetLanguage))
+        {
+            if (CaptureStatus.Text == CopiedMessage) CaptureStatus.Text = "";
+            _detail = Detail.None;
+            UpdateBody();
+            _lookupTimer.Stop();
+            _lookupTimer.Start();
+        }
+        if (args.PropertyName is nameof(MainWindowViewModel.Result) or nameof(MainWindowViewModel.ErrorMessage)
+            or nameof(MainWindowViewModel.WordCards) or nameof(MainWindowViewModel.IsBusy) or nameof(MainWindowViewModel.AiStatusText))
+        {
+            UpdateAiDetail();
+            UpdateBody();
+        }
+        else if (args.PropertyName is nameof(MainWindowViewModel.DictionaryCards))
+        {
+            UpdateBody();
+            // x:Bind refreshes ItemsSource from the same notification; select after it has run.
+            DispatcherQueue.TryEnqueue(() =>
+            {
+                if (ResultsList.Items.Count > 0 && ResultsList.SelectedIndex < 0) ResultsList.SelectedIndex = 0;
+            });
+        }
     }
+
+    private static Visibility Show(bool visible) => visible ? Visibility.Visible : Visibility.Collapsed;
+
+    private void UpdateBody()
+    {
+        bool empty = string.IsNullOrWhiteSpace(ViewModel.InputText);
+        QuickTiles.Visibility = Show(empty && _detail == Detail.None);
+        ResultsPanel.Visibility = Show(!empty && _detail == Detail.None);
+        DetailPanel.Visibility = Show(_detail != Detail.None);
+        DictionaryDetailCard.Visibility = Show(_detail == Detail.Dictionary);
+        AiDetail.Visibility = Show(_detail == Detail.Ai);
+        DictionaryStatusLine.Visibility = Show(ViewModel.DictionaryCards.Count == 0);
+        PrivacyFooter.Visibility = Show(empty && _detail == Detail.None);
+        KeyHints.Visibility = Show(!empty && _detail == Detail.None);
+        DetailHints.Visibility = Show(_detail != Detail.None);
+        TabHint.Visibility = Show(_detail == Detail.Ai && ViewModel.Result is not null);
+    }
+
+    // Loading, failure and answer states of the AI detail; the answer text picks hero or answer size by length.
+    private void UpdateAiDetail()
+    {
+        var result = ViewModel.Result;
+        bool asking = ViewModel.AskAiCommand.IsRunning;
+        string? error = ViewModel.IsAiAvailable ? ViewModel.ErrorMessage : ViewModel.AiSendNotice;
+        AiLoading.Visibility = Show(asking);
+        AiError.Visibility = Show(!asking && !string.IsNullOrEmpty(error));
+        AiErrorText.Text = error ?? "";
+        // The failure strip already says what happened; the status line would repeat it.
+        AiStatusLine.Visibility = Show(string.IsNullOrEmpty(error) || asking);
+        AiRetryButton.Visibility = Show(ViewModel.IsAiAvailable);
+        AnswerText.Visibility = Show(result is not null);
+        AnswerActions.Visibility = Show(result is not null);
+        AiTabs.Visibility = Show(result is not null);
+        AnswerText.Style = (Style)Microsoft.UI.Xaml.Application.Current.Resources[
+            (result?.NaturalTranslation?.Length ?? 0) <= HeroMaxLength ? "Phase1HeroTextStyle" : "Phase1AnswerTextStyle"];
+        NoWordsText.Visibility = Show(ViewModel.WordCards.Count == 0);
+        NoGrammarText.Visibility = Show(result is { Grammar.Count: 0 });
+        NoOtherWaysText.Visibility = Show(result is { Alternatives.Count: 0 });
+    }
+
+    private void ShowTabPanel()
+    {
+        // Checked fires while InitializeComponent is still creating the panels.
+        if (WordsPanel is null || ExplainPanel is null || GrammarPanel is null || OtherWaysPanel is null) return;
+        WordsPanel.Visibility = Show(WordsTab.IsChecked == true);
+        ExplainPanel.Visibility = Show(ExplainTab.IsChecked == true);
+        GrammarPanel.Visibility = Show(GrammarTab.IsChecked == true);
+        OtherWaysPanel.Visibility = Show(OtherWaysTab.IsChecked == true);
+    }
+
+    private void AnswerTab_Checked(object sender, RoutedEventArgs e) => ShowTabPanel();
+
+    private void CopyAnswer_Click(object sender, RoutedEventArgs e) => CopyAnswer();
+
+    private void AskAiRetry_Click(object sender, RoutedEventArgs e) => AskAi();
+
+    private void AskAiCommand_PropertyChanged(object? sender, PropertyChangedEventArgs e) => UpdateAiDetail();
+
+    private void LookupTimer_Tick(Microsoft.UI.Dispatching.DispatcherQueueTimer sender, object args) => LookupNow();
+
+    // Typing searches the local dictionary; AI never runs from here.
+    private void LookupNow()
+    {
+        if (_closing || string.IsNullOrWhiteSpace(ViewModel.InputText) || ViewModel.DictionaryInputSnapshot == ViewModel.InputText) return;
+        if (ViewModel.LookupDictionaryCommand.CanExecute(null)) ViewModel.LookupDictionaryCommand.Execute(null);
+        else if (ViewModel.IsBusy) _lookupTimer.Start();
+    }
+
+    private void OpenCard(DictionaryCardViewModel card)
+    {
+        DictionaryDetailCard.Items = [card];
+        ShowDetail(Detail.Dictionary);
+    }
+
+    private void ShowDetail(Detail detail)
+    {
+        if (detail == Detail.Ai) WordsTab.IsChecked = true;
+        // Park focus on the input first, so collapsing a focused result row does not send it to the footer.
+        InputBox.Focus(FocusState.Programmatic);
+        _detail = detail;
+        UpdateBody();
+        DetailPanel.ChangeView(null, 0, null, true);
+        // The button was collapsed until now; focus it once layout has made it focusable.
+        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () => BackButton.Focus(FocusState.Keyboard));
+    }
+
+    private void Back()
+    {
+        _detail = Detail.None;
+        UpdateBody();
+        InputBox.Focus(FocusState.Programmatic);
+    }
+
+    private void Back_Click(object sender, RoutedEventArgs e) => Back();
+
+    private async void AskAi()
+    {
+        if (_closing || string.IsNullOrWhiteSpace(ViewModel.InputText)) return;
+        bool answered = ViewModel.Result is not null && ViewModel.AiInputSnapshot == ViewModel.InputText;
+        // A keystroke lookup may still be running; it finishes in milliseconds.
+        if (!answered && ViewModel.LookupDictionaryCommand.ExecutionTask is { IsCompleted: false } lookup)
+        {
+            try { await lookup; }
+            catch (Exception) { /* The view model already published the lookup failure. */ }
+        }
+        if (_closing) return;
+        ShowDetail(Detail.Ai);
+        if (!answered && ViewModel.AskAiCommand.CanExecute(null)) ViewModel.AskAiCommand.Execute(null);
+    }
+
+    private bool CopyAnswer()
+    {
+        string? text = _detail == Detail.Ai ? ViewModel.Result?.NaturalTranslation
+            : (ResultsList.SelectedItem as DictionaryCardViewModel)?.CopyText;
+        if (string.IsNullOrEmpty(text)) return false;
+        try
+        {
+            new WindowsClipboardWriter().WriteTextAsync(text, CancellationToken.None).GetAwaiter().GetResult();
+            CaptureStatus.Text = CopiedMessage;
+        }
+        catch (Exception exception) when (exception is COMException or UnauthorizedAccessException)
+        {
+            CaptureStatus.Text = "Could not copy. Another app is using the clipboard; try again.";
+        }
+        return true;
+    }
+
+    private bool IsFocusInResults()
+    {
+        var focused = FocusManager.GetFocusedElement(Content.XamlRoot) as DependencyObject;
+        return ReferenceEquals(focused, InputBox) || (focused is not null && ResultsList.IndexFromContainer(focused) >= 0);
+    }
+
+    private static bool IsDown(VirtualKey key) =>
+        InputKeyboardSource.GetKeyStateForCurrentThread(key).HasFlag(global::Windows.UI.Core.CoreVirtualKeyStates.Down);
+
+    private void Root_PreviewKeyDown(object sender, KeyRoutedEventArgs e)
+    {
+        bool ctrl = IsDown(VirtualKey.Control);
+        if (e.Key == VirtualKey.Tab && !ctrl && !IsDown(VirtualKey.Shift) && _detail == Detail.None &&
+            !string.IsNullOrWhiteSpace(ViewModel.InputText) && IsFocusInResults())
+        {
+            e.Handled = true;
+            AskAi();
+        }
+        else if (ctrl && (int)e.Key == 190) // VK_OEM_PERIOD
+        {
+            e.Handled = true;
+            SwapLanguages();
+        }
+        else if (ctrl && e.Key == VirtualKey.C &&
+                 FocusManager.GetFocusedElement(Content.XamlRoot) is not (TextBox { SelectionLength: > 0 } or TextBlock { SelectedText.Length: > 0 }))
+        {
+            e.Handled = CopyAnswer();
+        }
+    }
+
+    private void Root_KeyDown(object sender, KeyRoutedEventArgs e)
+    {
+        if (e.Key == VirtualKey.Escape)
+        {
+            e.Handled = true;
+            if (!HideLauncher() && _detail != Detail.None) Back();
+        }
+        else if (_detail == Detail.Ai && ViewModel.Result is not null && TabForKey(e.Key) is { } tab &&
+                 FocusManager.GetFocusedElement(Content.XamlRoot) is not TextBox)
+        {
+            e.Handled = true;
+            tab.IsChecked = true;
+        }
+        else if (e.Key == VirtualKey.Left && _detail != Detail.None && FocusManager.GetFocusedElement(Content.XamlRoot) is not TextBox)
+        {
+            e.Handled = true;
+            Back();
+        }
+    }
+
+    private RadioButton? TabForKey(VirtualKey key) => key switch
+    {
+        VirtualKey.Number1 or VirtualKey.NumberPad1 => WordsTab,
+        VirtualKey.Number2 or VirtualKey.NumberPad2 => ExplainTab,
+        VirtualKey.Number3 or VirtualKey.NumberPad3 => GrammarTab,
+        VirtualKey.Number4 or VirtualKey.NumberPad4 => OtherWaysTab,
+        _ => null
+    };
+
+    private void ResultsList_PreviewKeyDown(object sender, KeyRoutedEventArgs e)
+    {
+        if (e.Key != VirtualKey.Up || ResultsList.SelectedIndex > 0) return;
+        e.Handled = true;
+        InputBox.Focus(FocusState.Keyboard);
+    }
+
+    private void ResultsList_ItemClick(object sender, ItemClickEventArgs e)
+    {
+        if (e.ClickedItem is DictionaryCardViewModel card) OpenCard(card);
+    }
+
+    private void ResultsList_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        foreach (var card in e.RemovedItems.OfType<DictionaryCardViewModel>()) card.IsSelected = false;
+        foreach (var card in e.AddedItems.OfType<DictionaryCardViewModel>()) card.IsSelected = true;
+    }
+
+    private void LanguageMenu_Opening(object sender, object e)
+    {
+        var menu = (MenuFlyout)sender;
+        var current = ReferenceEquals(menu, SourceMenu) ? ViewModel.SourceLanguage : ViewModel.TargetLanguage;
+        foreach (var item in menu.Items.OfType<RadioMenuFlyoutItem>())
+            item.IsChecked = Enum.Parse<Language>((string)item.Tag) == current;
+    }
+
+    private void SourceLanguage_Click(object sender, RoutedEventArgs e) =>
+        ViewModel.SourceLanguage = Enum.Parse<Language>((string)((FrameworkElement)sender).Tag);
+
+    private void TargetLanguage_Click(object sender, RoutedEventArgs e) =>
+        ViewModel.TargetLanguage = Enum.Parse<Language>((string)((FrameworkElement)sender).Tag);
+
+    private void SwapLanguages_Click(object sender, RoutedEventArgs e) => SwapLanguages();
+
+    private void SwapLanguages() =>
+        (ViewModel.SourceLanguage, ViewModel.TargetLanguage) = (ViewModel.TargetLanguage, ViewModel.SourceLanguage);
+
+    public static Visibility Shown(string? text) => string.IsNullOrEmpty(text) ? Visibility.Collapsed : Visibility.Visible;
+
+    public static string LanguageCode(Language language) => TranslationPopupViewModel.LanguageCode(language);
+
+    public static string LanguageButtonName(string action, Language language) => $"{action} {language}";
+
 
     private void RetryHotkey_Click(object sender, RoutedEventArgs args)
     {
@@ -366,6 +728,10 @@ public sealed partial class MainWindow : Window
     private void LauncherLoaded(object sender, RoutedEventArgs args)
     {
         ((FrameworkElement)Content).Loaded -= LauncherLoaded;
+        Content.XamlRoot.Changed += (_, _) => PlaceLauncher(onCursorDisplay: false);
+        PlaceLauncher(onCursorDisplay: true);
+        PinOnTop((OverlappedPresenter)AppWindow.Presenter);
+        InputBox.Focus(FocusState.Programmatic);
         if (!_closing) _dictionaryDialogTask = OfferDictionarySetupAsync();
     }
 
@@ -384,6 +750,7 @@ public sealed partial class MainWindow : Window
     private void Dictionaries_Click(object sender, RoutedEventArgs args)
     {
         if (_closing || !_dictionaryDialogTask.IsCompleted) return;
+        SettingsButton.Flyout.Hide();
         InvalidateSelectedCapture();
         _dictionaryDialogTask = ShowDictionariesAsync();
     }
@@ -397,7 +764,12 @@ public sealed partial class MainWindow : Window
         try
         {
             await model.LoadAsync();
-            if (!_closing) await dialog.ShowAsync();
+            if (!_closing)
+            {
+                _dialogOpen = true;
+                PlaceLauncher(onCursorDisplay: false);
+                await dialog.ShowAsync();
+            }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException)
         { if (!_closing) CaptureStatus.Text = "Dictionary management could not open. Try again when ready."; }
@@ -405,6 +777,9 @@ public sealed partial class MainWindow : Window
         {
             await model.CloseAsync();
             if (ReferenceEquals(_dictionaryDialog, dialog)) _dictionaryDialog = null;
+            _dialogOpen = false;
+            PlaceLauncher(onCursorDisplay: false);
+            if (!_closing) InputBox.Focus(FocusState.Programmatic);
         }
     }
 
@@ -537,6 +912,12 @@ public sealed partial class MainWindow : Window
             await session.OverlayRetiredAsync();
             if (_closing || session.Capture!.IsCanceled) return;
             var popup = new Phase1Session(session.Popup, AppWindow);
+            session.Popup.SetOpenDetail(() => ExplainCapture(session));
+            session.Popup.SetSelectAgain(() =>
+            {
+                session.Popup.CloseCommand.Execute(null);
+                SelectRegion_Click(this, new RoutedEventArgs());
+            });
             _capturePopups.Add(popup, session);
             popup.Closed += CapturePopupClosed;
             popup.Failed += CapturePopupFailed;
@@ -601,6 +982,23 @@ public sealed partial class MainWindow : Window
         else CaptureStatus.Text = "Capture canceled; waiting for native work to finish.";
     }
 
+    // Explain in a lens popup opens the same text and answer in the bar's Result detail.
+    private void ExplainCapture(CapturedTranslationSession session)
+    {
+        if (_closing || _shellController.IsStopping) return;
+        CaptureStatus.Text = "";
+        ViewModel.AdoptResult(session.Backend);
+        ShowLauncher();
+        if (ViewModel.Result is not null) ShowDetail(Detail.Ai);
+        else if (session.Popup.ShowWordPicker && session.Popup.SelectedWord is { } word)
+        {
+            // The word picker opens the selected word's cards, with the word in the input.
+            ViewModel.InputText = word.Word.Text;
+            DictionaryDetailCard.Items = word.Result.Entries.Select(entry => new DictionaryCardViewModel(entry, ViewModel.Pronunciation)).ToArray();
+            ShowDetail(Detail.Dictionary);
+        }
+    }
+
     private void CapturePopupClosed(object? sender, EventArgs args)
     {
         if (sender is not Phase1Session popup || !_capturePopups.Remove(popup, out var session)) return;
@@ -625,13 +1023,26 @@ public sealed partial class MainWindow : Window
 
     private void InputBox_KeyDown(object sender, KeyRoutedEventArgs e)
     {
-        if (e.Key != VirtualKey.Enter) return;
-        e.Handled = true;
-        if (ViewModel.LookupDictionaryCommand.CanExecute(null))
-            ViewModel.LookupDictionaryCommand.Execute(null);
+        if (e.Key == VirtualKey.Enter)
+        {
+            e.Handled = true;
+            if (ResultsList.SelectedItem is DictionaryCardViewModel card) OpenCard(card);
+            else
+            {
+                _lookupTimer.Stop();
+                LookupNow();
+            }
+        }
+        else if (e.Key == VirtualKey.Down && ResultsList.Items.Count > 0 && _detail == Detail.None)
+        {
+            e.Handled = true;
+            int index = ResultsList.SelectedIndex == 0 && ResultsList.Items.Count > 1 ? 1 : Math.Max(ResultsList.SelectedIndex, 0);
+            ResultsList.SelectedIndex = index;
+            (ResultsList.ContainerFromIndex(index) as Control)?.Focus(FocusState.Keyboard);
+        }
     }
 
-    private void AskAi_Click(object sender, RoutedEventArgs e) => AiDetails.IsExpanded = true;
+    private void AskAi_Click(object sender, RoutedEventArgs e) => AskAi();
 
     private void DesignPreview_Click(object sender, RoutedEventArgs e)
     {
@@ -707,6 +1118,7 @@ public sealed partial class MainWindow : Window
     private async Task ShutdownAndCloseAsync()
     {
         _closing = true;
+        _lookupTimer.Stop();
         bool retired = true;
         void Attempt(Action action)
         {
@@ -791,6 +1203,9 @@ public sealed partial class MainWindow : Window
             _shell.StateChanged -= Shell_StateChanged;
         }
         ViewModel.PropertyChanged -= LauncherBackendChanged;
+        ViewModel.AskAiCommand.PropertyChanged -= AskAiCommand_PropertyChanged;
+        _lookupTimer.Tick -= LookupTimer_Tick;
+        Activated -= Launcher_Activated;
         AppWindow.Closing -= AppWindow_Closing;
         Closed -= MainWindow_Closed;
         _dictionaryLifetime.Dispose();

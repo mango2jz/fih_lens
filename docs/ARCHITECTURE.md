@@ -435,6 +435,25 @@ ITranslationProvider
 CloudProvider      LocalAIProvider
 ```
 
+## Provider configuration
+
+`FihLens.WinUI/TranslationStartup.cs` selects the Ask AI provider from environment variables at startup. Only the selected key is read. Invalid or missing values disable Ask AI only; dictionary lookup keeps working.
+
+| `FIHLENS_PROVIDER_MODE` | Key variable | Model | Client timeout |
+| --- | --- | --- | --- |
+| unset or `demo` | none | Ask AI disabled | — |
+| `gemini` | `GEMINI_API_KEY` | `gemini-3.5-flash-lite` | 30 s |
+| `deepseek` | `DEEPSEEK_API_KEY` | `deepseek-flash` | 30 s |
+| `openrouter-nemotron` | `OPENROUTER_API_KEY` | `nvidia/nemotron-3.5-super-vl:free` | 60 s |
+
+`OpenRouterTranslationProvider` is generic over the OpenRouter chat-completions API: it takes a model id and a `useJsonSchema` flag, so another free model is one line in `TranslationStartup`. Free models are reasoning models that queue, so they get a longer timeout and send `reasoning: { effort: "low", exclude: true }` to keep reasoning within the `max_tokens` budget. With `useJsonSchema` (Nemotron), the provider sends the shared analysis schema (`TranslationAnalysisSchema`, also used by Gemini) as `json_schema` with `provider.require_parameters`, because plain `json_object` gave unparseable replies in live tests; models without structured-output support use `json_object`. A Gemma mode (`google/gemma-4-31b-it:free`) was dropped after its shared free endpoint returned 429 on every live request.
+
+Free OpenRouter models:
+
+- **Privacy:** free endpoints may log prompts or use them for training. Selected or captured text is sent to them. The provider label shows "(free, may log text)" wherever the app names the provider. Your OpenRouter privacy settings must allow free-model endpoints, or requests fail.
+- **Limits:** 20 requests per minute, 50 per day with less than 10 USD of purchased credits, 1000 per day with at least 10 USD (OpenRouter docs, 2026-10). Exceeding them shows the rate-limited error.
+- **Failure meanings:** 404 "No endpoints found" means the free model was retired, its endpoint is down, no endpoint supports the required structured output, or your privacy settings block it (shown as request rejected). Update the model id in `TranslationStartup`, or change the setting. 402 means a negative account balance, even for free models (shown as an authentication error). 429 means rate limited.
+
 ---
 
 # 8. FihLens.Windows

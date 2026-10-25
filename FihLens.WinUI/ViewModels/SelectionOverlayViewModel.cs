@@ -14,7 +14,7 @@ public sealed class SelectionOverlayViewModel(CaptureSourceSnapshot source, Lang
     private bool _departed;
     private bool _closed;
     private PhysicalPixelRect? _selection;
-    private string _status = "Drag to select. Keyboard: create, arrows move, Shift+arrows resize, Enter confirm, Escape cancel.";
+    private string _status = "Drag over the text.";
 
     public CaptureSourceSnapshot Source { get; } = source ?? throw new ArgumentNullException(nameof(source));
     public Language SourceLanguage { get; } = sourceLanguage is Language.English or Language.Vietnamese or Language.Japanese
@@ -22,6 +22,15 @@ public sealed class SelectionOverlayViewModel(CaptureSourceSnapshot source, Lang
     public PhysicalPixelRect? Selection => _selection;
     public string Dimensions => _selection is { } rect ? $"{rect.Width} × {rect.Height} px" : "No region selected";
     public string Status => _status;
+    public string DisplayLabel => FriendlyDisplayName(Source.SourceId);
+
+    /// <summary>"\\.\DISPLAY2" reads as "Display 2"; other ids are shown as they are.</summary>
+    public static string FriendlyDisplayName(string sourceId)
+    {
+        ArgumentNullException.ThrowIfNull(sourceId);
+        var digits = new string(sourceId.Reverse().TakeWhile(char.IsAsciiDigit).Reverse().ToArray());
+        return digits.Length > 0 && digits.Length < sourceId.Length ? $"Display {digits}" : sourceId;
+    }
     public bool CanConfirm => !_closed && !_dragging && !_departed && _selection is not null;
 
     public void BeginDrag(int x, int y)
@@ -31,7 +40,7 @@ public sealed class SelectionOverlayViewModel(CaptureSourceSnapshot source, Lang
         _startY = y;
         _dragging = true;
         _departed = !SelectionGeometry.ContainsPoint(Source.DisplayBounds, x, y);
-        Update(null, _departed ? "Select within one display." : "Drag to select.");
+        Update(null, _departed ? "Select within one display." : "Drag over the text.");
     }
 
     public void MoveDrag(int x, int y)
@@ -39,7 +48,7 @@ public sealed class SelectionOverlayViewModel(CaptureSourceSnapshot source, Lang
         if (_closed || !_dragging) return;
         _departed |= !SelectionGeometry.ContainsPoint(Source.DisplayBounds, x, y);
         Update(_departed ? null : SelectionGeometry.Drag(Source.DisplayBounds, _startX, _startY, x, y),
-            _departed ? "Cross-display selection rejected. Start a new selection." : "Release to finish selection.");
+            _departed ? "Cross-display selection rejected. Start a new selection." : "Let go to finish.");
     }
 
     public void EndDrag(int x, int y)
@@ -47,7 +56,7 @@ public sealed class SelectionOverlayViewModel(CaptureSourceSnapshot source, Lang
         if (_closed || !_dragging) return;
         MoveDrag(x, y);
         _dragging = false;
-        Update(_selection, _departed ? _status : _selection is null ? "Select a nonzero region." : "Enter to confirm.");
+        Update(_selection, _departed ? _status : _selection is null ? "Drag over a bigger area." : "Press Enter to translate.");
     }
 
     public void CreateKeyboardSelection()
@@ -56,7 +65,7 @@ public sealed class SelectionOverlayViewModel(CaptureSourceSnapshot source, Lang
         _dragging = false;
         _departed = false;
         var bounds = Source.DisplayBounds;
-        Update(new(bounds.X, bounds.Y, 1, 1), "Arrows move; Shift+arrows resize. Enter confirms.");
+        Update(new(bounds.X, bounds.Y, 1, 1), "Arrows move, Shift+arrows resize.");
     }
 
     public void AdjustKeyboard(int deltaX, int deltaY, bool resize)
@@ -64,7 +73,7 @@ public sealed class SelectionOverlayViewModel(CaptureSourceSnapshot source, Lang
         if (_closed || _dragging || _departed || _selection is not { } rect) return;
         var adjusted = SelectionGeometry.Adjust(Source.DisplayBounds, rect, deltaX, deltaY, resize);
         // Preserve the prior valid region rather than silently clipping an invalid adjustment.
-        Update(adjusted ?? rect, adjusted is null ? "Adjustment rejected: keep a positive region within this display." : "Enter to confirm.");
+        Update(adjusted ?? rect, adjusted is null ? "Adjustment rejected: keep the region on this display." : "Press Enter to translate.");
     }
 
     public RegionTextCaptureRequest? Confirm()
@@ -72,7 +81,7 @@ public sealed class SelectionOverlayViewModel(CaptureSourceSnapshot source, Lang
         if (!CanConfirm) return null;
         var request = new RegionTextCaptureRequest(Source, _selection!.Value, SourceLanguage);
         _closed = true;
-        Update(_selection, "Selection confirmed; waiting for overlay retirement.");
+        Update(_selection, "Reading text…");
         return request;
     }
 

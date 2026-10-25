@@ -27,6 +27,8 @@ public sealed class CapturedTranslationSession : IDisposable
         MainWindowViewModel backend, IClipboardWriter clipboard)
         : this(new RegionCaptureSession(capture, publishOnUi), backend, clipboard, "Selected screen region")
     {
+        // A region holds running text, so the popup offers its words one at a time.
+        Backend.SplitDictionaryWords = true;
         Popup.PresentCaptureStatus("Select a screen region.", false, false);
     }
 

@@ -5,6 +5,7 @@ using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Input;
 using Windows.Graphics;
@@ -15,6 +16,8 @@ namespace FihLens.WinUI.Views;
 
 public sealed partial class TranslationPopupWindow : Window
 {
+    // Lens popup width from components.css (.fl-pop).
+    private const double PopupWidth = 380;
     private XamlRoot? _root;
     private DisplayAreaWatcher? _displays;
     private bool _closed;
@@ -42,6 +45,7 @@ public sealed partial class TranslationPopupWindow : Window
             Place(display, scale: 1, center: true);
             PopupRoot.Loaded += Root_Loaded;
             PopupRoot.AddHandler(UIElement.KeyDownEvent, new KeyEventHandler(Root_KeyDown), true);
+            PopupRoot.PreviewKeyDown += Root_PreviewKeyDown;
             AppWindow.Changed += AppWindow_Changed;
             _viewModel.PropertyChanged += ViewModel_Changed;
             Closed += Window_Closed;
@@ -135,13 +139,13 @@ public sealed partial class TranslationPopupWindow : Window
         var area = new PixelRect(work.X, work.Y, work.Width, work.Height);
         int heightDip = _viewModel.PreferredHeight;
         var placement = PopupPlacement.Calculate(area, AppWindow.Position.X, AppWindow.Position.Y,
-            400, heightDip, scale, extraWidth, extraHeight);
+            PopupWidth, heightDip, scale, extraWidth, extraHeight);
         if (center)
         {
             placement = PopupPlacement.Calculate(area,
                 work.X + (work.Width - placement.OuterBounds.Width) / 2,
                 work.Y + (work.Height - placement.OuterBounds.Height) / 2,
-                400, heightDip, scale, extraWidth, extraHeight);
+                PopupWidth, heightDip, scale, extraWidth, extraHeight);
         }
 
         if (AppWindow.ClientSize.Width != placement.ClientWidth ||
@@ -172,6 +176,33 @@ public sealed partial class TranslationPopupWindow : Window
         args.Handled = _viewModel.TryHandleShortcut(args.Key == VirtualKey.C ? 'C' : 'E', hasModifiers, isEditing);
     }
 
+    // Word picker keys run before controls see them: ← → between found words, Enter details, Tab Ask AI,
+    // Ctrl+C the selected word, Ctrl+Shift+C the whole text.
+    private void Root_PreviewKeyDown(object sender, KeyRoutedEventArgs args)
+    {
+        if (!_viewModel.ShowWordPicker || IsDown(VirtualKey.Menu) || IsDown(VirtualKey.LeftWindows) || IsDown(VirtualKey.RightWindows)) return;
+        bool ctrl = IsDown(VirtualKey.Control), shift = IsDown(VirtualKey.Shift);
+        object? focused = _root is null ? null : FocusManager.GetFocusedElement(_root);
+        System.Windows.Input.ICommand? command = null;
+        if (args.Key is VirtualKey.Left or VirtualKey.Right && !ctrl && !shift)
+        {
+            if (_viewModel.MoveWordSelection(args.Key == VirtualKey.Left ? -1 : 1)) PopupContent.FocusSelectedWord();
+            // With a selection, arrows belong to the words even at either end.
+            args.Handled = _viewModel.SelectedWord is not null;
+            return;
+        }
+        if (args.Key == VirtualKey.Tab && !ctrl && !shift) command = _viewModel.AskAiCommand;
+        // Enter on another button (Close, Ask AI, a link) keeps that button's action.
+        else if (args.Key == VirtualKey.Enter && !ctrl && !shift && (focused is RadioButton || focused is not ButtonBase)) command = _viewModel.ExplainCommand;
+        else if (args.Key == VirtualKey.C && ctrl && focused is not TextBlock) command = shift ? _viewModel.CopyOriginalCommand : _viewModel.CopyCommand;
+        if (command?.CanExecute(null) != true) return;
+        command.Execute(null);
+        args.Handled = true;
+    }
+
+    private static bool IsDown(VirtualKey key) =>
+        (InputKeyboardSource.GetKeyStateForCurrentThread(key) & CoreVirtualKeyStates.Down) != 0;
+
     private static bool IsEditable(DependencyObject? element)
     {
         for (; element is not null; element = VisualTreeHelper.GetParent(element))
@@ -185,6 +216,7 @@ public sealed partial class TranslationPopupWindow : Window
         _closed = true;
         PopupRoot.Loaded -= Root_Loaded;
         PopupRoot.RemoveHandler(UIElement.KeyDownEvent, new KeyEventHandler(Root_KeyDown));
+        PopupRoot.PreviewKeyDown -= Root_PreviewKeyDown;
         AppWindow.Changed -= AppWindow_Changed;
         _viewModel.PropertyChanged -= ViewModel_Changed;
         if (_root is not null) _root.Changed -= Root_Changed;

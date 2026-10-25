@@ -37,9 +37,11 @@ public sealed class WindowsRegionTextCapture : IRegionTextCapture
             var recognized = await engine.RecognizeAsync(bitmap);
             linked.Token.ThrowIfCancellationRequested();
             NativeCapture.RequireSource(request.Source);
-            return string.IsNullOrWhiteSpace(recognized.Text)
+            // Join lines explicitly so the word picker can show the region's line breaks.
+            string text = string.Join("\n", recognized.Lines.Select(line => line.Text));
+            return string.IsNullOrWhiteSpace(text)
                 ? RegionTextCaptureResult.Failure(RegionTextCaptureOutcome.NoText)
-                : RegionTextCaptureResult.Success(recognized.Text);
+                : RegionTextCaptureResult.Success(text);
         }
         catch (Exception) when (cancellationToken.IsCancellationRequested)
         {

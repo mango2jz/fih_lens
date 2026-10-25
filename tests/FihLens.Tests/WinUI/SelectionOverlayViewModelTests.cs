@@ -68,4 +68,13 @@ public sealed class SelectionOverlayViewModelTests
         Assert.Null(vm.Selection);
         Assert.Null(vm.Confirm());
     }
+
+    [Theory]
+    [InlineData(@"\\.\DISPLAY2", "Display 2")]
+    [InlineData("monitor-A", "monitor-A")]
+    [InlineData("12", "12")]
+    public void DisplayIdsReadAsDisplayNumbers(string id, string expected)
+    {
+        Assert.Equal(expected, SelectionOverlayViewModel.FriendlyDisplayName(id));
+    }
 }

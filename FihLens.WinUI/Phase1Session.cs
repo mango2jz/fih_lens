@@ -12,6 +12,7 @@ internal sealed class Phase1Session : IDisposable
     private readonly TranslationPopupViewModel _viewModel;
     private readonly TranslationPopupWindow _window;
     private readonly WindowFocusSnapshot _priorForeground;
+    private readonly bool _invokedFromBackground;
     private bool _closed;
     private bool _closing;
     private bool _restoreForeground;
@@ -23,6 +24,7 @@ internal sealed class Phase1Session : IDisposable
     {
         _viewModel = viewModel;
         _priorForeground = origin ?? WindowFocus.Capture();
+        _invokedFromBackground = origin is not null;
         try { _window = new TranslationPopupWindow(viewModel, launcher); }
         catch
         {
@@ -39,6 +41,8 @@ internal sealed class Phase1Session : IDisposable
     {
         ObjectDisposedException.ThrowIf(_closed, this);
         if (_window.Content is FrameworkElement root) root.RequestedTheme = theme;
+        // Windows refuses activation to a background process, so a hotkey popup would open behind the source app.
+        if (_invokedFromBackground && _window.AppWindow.Presenter is OverlappedPresenter presenter) presenter.IsAlwaysOnTop = true;
         _window.Activate();
     }
 

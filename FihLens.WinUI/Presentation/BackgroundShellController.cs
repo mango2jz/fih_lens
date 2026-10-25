@@ -45,6 +45,10 @@ public sealed class BackgroundShellController(Action open, Func<RegionCaptureReq
         return modalPending ? LauncherCloseAction.KeepVisible : LauncherCloseAction.Hide;
     }
 
+    /// <summary>Esc and focus loss hide the launcher only while the tray or hotkey can bring it back.</summary>
+    public bool CanHide(bool trayAvailable, bool hotkeyAvailable, bool modalPending) =>
+        !IsStopping && !ExitFailed && !modalPending && (trayAvailable || hotkeyAvailable);
+
     public void RequestExit()
     {
         if (ExitPending) return;

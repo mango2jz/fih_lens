@@ -45,6 +45,19 @@ internal readonly record struct PopupPlacement(PixelRect OuterBounds, int Client
         return new PopupPlacement(new PixelRect(x, y, outerWidth, outerHeight), clientWidth, clientHeight);
     }
 
+    /// <summary>Spotlight bar bounds: centred horizontally, top at the middle of the upper third of the work area.</summary>
+    public static PixelRect CalculateSpotlight(PixelRect desktopWorkArea, double widthDip, double heightDip, double scale)
+    {
+        if (desktopWorkArea.Width <= 0 || desktopWorkArea.Height <= 0) throw new ArgumentOutOfRangeException(nameof(desktopWorkArea));
+        if (!double.IsFinite(scale) || scale <= 0) throw new ArgumentOutOfRangeException(nameof(scale));
+        int width = Math.Min(ToPixels(widthDip, scale, nameof(widthDip)), desktopWorkArea.Width);
+        int height = Math.Min(ToPixels(heightDip, scale, nameof(heightDip)), desktopWorkArea.Height);
+        int x = desktopWorkArea.X + (desktopWorkArea.Width - width) / 2;
+        // Tall content moves the bar up rather than off the bottom of the screen.
+        int y = Math.Min(desktopWorkArea.Y + desktopWorkArea.Height / 6, desktopWorkArea.Y + desktopWorkArea.Height - height);
+        return new PixelRect(x, y, width, height);
+    }
+
     private static int ToPixels(double dip, double scale, string parameterName)
     {
         // Match the native feasibility probe: nearest physical pixel, midpoint to even.
