@@ -3,37 +3,186 @@
   xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
   <!-- Keyed styles leave the existing launcher and native control templates intact. -->
   <Style x:Key="Phase1BodyTextStyle" TargetType="TextBlock">
-    <Setter Property="FontFamily" Value="{StaticResource Phase1FontFamily}" />
+    <Setter Property="FontFamily" Value="{StaticResource Phase1SansRegularFontFamily}" />
     <Setter Property="FontSize" Value="{StaticResource Phase1BodyFontSize}" />
     <Setter Property="LineHeight" Value="{StaticResource Phase1BodyLineHeight}" />
     <Setter Property="LineStackingStrategy" Value="BlockLineHeight" />
-    <Setter Property="Foreground" Value="{ThemeResource Phase1TextBrush}" />
+    <Setter Property="Foreground" Value="{ThemeResource Phase1InkBrush}" />
     <Setter Property="TextWrapping" Value="Wrap" />
     <Setter Property="IsTextSelectionEnabled" Value="True" />
   </Style>
-  <Style x:Key="Phase1TranslationTextStyle" TargetType="TextBlock" BasedOn="{StaticResource Phase1BodyTextStyle}">
-    <Setter Property="FontSize" Value="{StaticResource Phase1TranslationFontSize}" />
-    <Setter Property="LineHeight" Value="{StaticResource Phase1TranslationLineHeight}" />
-    <Setter Property="Foreground" Value="{ThemeResource Phase1TextBrush}" />
-    <Setter Property="FontWeight" Value="Normal" />
+  <!-- Spotlight type styles (tokens.json "type"). FontWeight matches the face in each family file. -->
+  <Style x:Key="Phase1HeroTextStyle" TargetType="TextBlock" BasedOn="{StaticResource Phase1BodyTextStyle}">
+    <Setter Property="FontFamily" Value="{StaticResource Phase1SansExtraBoldFontFamily}" />
+    <Setter Property="FontSize" Value="{StaticResource Phase1HeroFontSize}" />
+    <Setter Property="LineHeight" Value="{StaticResource Phase1HeroLineHeight}" />
+    <Setter Property="CharacterSpacing" Value="{StaticResource Phase1HeroCharacterSpacing}" />
+    <Setter Property="FontWeight" Value="ExtraBold" />
   </Style>
+  <Style x:Key="Phase1QueryTextStyle" TargetType="TextBlock" BasedOn="{StaticResource Phase1BodyTextStyle}">
+    <Setter Property="FontFamily" Value="{StaticResource Phase1SansMediumFontFamily}" />
+    <Setter Property="FontSize" Value="{StaticResource Phase1QueryFontSize}" />
+    <Setter Property="LineHeight" Value="{StaticResource Phase1QueryLineHeight}" />
+    <Setter Property="CharacterSpacing" Value="{StaticResource Phase1QueryCharacterSpacing}" />
+    <Setter Property="FontWeight" Value="Medium" />
+  </Style>
+  <Style x:Key="Phase1AnswerTextStyle" TargetType="TextBlock" BasedOn="{StaticResource Phase1BodyTextStyle}">
+    <Setter Property="FontFamily" Value="{StaticResource Phase1SansSemiBoldFontFamily}" />
+    <Setter Property="FontSize" Value="{StaticResource Phase1AnswerFontSize}" />
+    <Setter Property="LineHeight" Value="{StaticResource Phase1AnswerLineHeight}" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+  <Style x:Key="Phase1HeadwordJpTextStyle" TargetType="TextBlock" BasedOn="{StaticResource Phase1BodyTextStyle}">
+    <Setter Property="FontFamily" Value="{StaticResource Phase1JpBoldFontFamily}" />
+    <Setter Property="FontSize" Value="{StaticResource Phase1HeadwordJpFontSize}" />
+    <Setter Property="LineHeight" Value="{StaticResource Phase1HeadwordJpLineHeight}" />
+    <Setter Property="FontWeight" Value="Bold" />
+  </Style>
+  <Style x:Key="Phase1ReadingTextStyle" TargetType="TextBlock" BasedOn="{StaticResource Phase1BodyTextStyle}">
+    <Setter Property="FontFamily" Value="{StaticResource Phase1JpRegularFontFamily}" />
+    <Setter Property="FontSize" Value="{StaticResource Phase1ReadingFontSize}" />
+    <Setter Property="LineHeight" Value="{StaticResource Phase1ReadingLineHeight}" />
+    <Setter Property="Foreground" Value="{ThemeResource Phase1InkMutedBrush}" />
+  </Style>
+  <Style x:Key="Phase1KeyTextStyle" TargetType="TextBlock" BasedOn="{StaticResource Phase1BodyTextStyle}">
+    <Setter Property="FontFamily" Value="{StaticResource Phase1MonoFontFamily}" />
+    <Setter Property="FontSize" Value="{StaticResource Phase1KeyFontSize}" />
+    <Setter Property="LineHeight" Value="{StaticResource Phase1KeyLineHeight}" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="Foreground" Value="{ThemeResource Phase1InkMutedBrush}" />
+    <Setter Property="TextWrapping" Value="NoWrap" />
+    <Setter Property="IsTextSelectionEnabled" Value="False" />
+  </Style>
+  <Style x:Key="Phase1TranslationTextStyle" TargetType="TextBlock" BasedOn="{StaticResource Phase1AnswerTextStyle}" />
   <Style x:Key="Phase1CaptionTextStyle" TargetType="TextBlock" BasedOn="{StaticResource Phase1BodyTextStyle}">
+    <Setter Property="FontFamily" Value="{StaticResource Phase1SansMediumFontFamily}" />
     <Setter Property="FontSize" Value="{StaticResource Phase1CaptionFontSize}" />
     <Setter Property="LineHeight" Value="{StaticResource Phase1CaptionLineHeight}" />
-    <Setter Property="Foreground" Value="{ThemeResource Phase1SecondaryBrush}" />
-    <Setter Property="FontWeight" Value="Normal" />
+    <Setter Property="Foreground" Value="{ThemeResource Phase1InkMutedBrush}" />
+    <Setter Property="FontWeight" Value="Medium" />
   </Style>
   <Style x:Key="Phase1LabelTextStyle" TargetType="TextBlock" BasedOn="{StaticResource Phase1BodyTextStyle}">
+    <Setter Property="FontFamily" Value="{StaticResource Phase1SansSemiBoldFontFamily}" />
     <Setter Property="FontSize" Value="{StaticResource Phase1LabelFontSize}" />
     <Setter Property="LineHeight" Value="{StaticResource Phase1LabelLineHeight}" />
-    <Setter Property="Foreground" Value="{ThemeResource Phase1TextBrush}" />
     <Setter Property="FontWeight" Value="SemiBold" />
   </Style>
-  <Style x:Key="Phase1TitleTextStyle" TargetType="TextBlock" BasedOn="{StaticResource Phase1BodyTextStyle}">
+  <Style x:Key="Phase1TitleTextStyle" TargetType="TextBlock" BasedOn="{StaticResource Phase1LabelTextStyle}">
     <Setter Property="FontSize" Value="{StaticResource Phase1TitleFontSize}" />
     <Setter Property="LineHeight" Value="{StaticResource Phase1TitleLineHeight}" />
-    <Setter Property="Foreground" Value="{ThemeResource Phase1TextBrush}" />
+  </Style>
+  <!-- Spotlight parts (reference-css/components.css .fl-key, .fl-badge, .fl-bar__field). -->
+  <Style x:Key="Phase1KeycapStyle" TargetType="ContentControl">
+    <Setter Property="IsTabStop" Value="False" />
+    <Setter Property="MinWidth" Value="22" />
+    <Setter Property="Height" Value="22" />
+    <Setter Property="Padding" Value="6,0" />
+    <Setter Property="Background" Value="{ThemeResource Phase1BarSunkenBrush}" />
+    <Setter Property="Foreground" Value="{ThemeResource Phase1InkMutedBrush}" />
+    <Setter Property="BorderBrush" Value="{ThemeResource Phase1LineBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="FontFamily" Value="{StaticResource Phase1MonoFontFamily}" />
+    <Setter Property="FontSize" Value="{StaticResource Phase1KeyFontSize}" />
     <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="ContentControl">
+          <Border MinWidth="{TemplateBinding MinWidth}" Height="{TemplateBinding Height}" Padding="{TemplateBinding Padding}" CornerRadius="6"
+                  Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}">
+            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{TemplateBinding Foreground}"
+                              FontFamily="{TemplateBinding FontFamily}" FontSize="{TemplateBinding FontSize}" FontWeight="{TemplateBinding FontWeight}" />
+          </Border>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+  <Style x:Key="Phase1KoiKeycapStyle" TargetType="ContentControl" BasedOn="{StaticResource Phase1KeycapStyle}">
+    <Setter Property="Background" Value="{ThemeResource Phase1KoiBrush}" />
+    <Setter Property="Foreground" Value="{ThemeResource Phase1OnKoiBrush}" />
+    <Setter Property="BorderThickness" Value="0" />
+  </Style>
+  <Style x:Key="Phase1LimeKeycapStyle" TargetType="ContentControl" BasedOn="{StaticResource Phase1KeycapStyle}">
+    <Setter Property="Background" Value="{ThemeResource Phase1LimeBrush}" />
+    <Setter Property="Foreground" Value="{ThemeResource Phase1OnLimeBrush}" />
+    <Setter Property="BorderThickness" Value="0" />
+  </Style>
+  <Style x:Key="Phase1BadgeStyle" TargetType="ContentControl">
+    <Setter Property="IsTabStop" Value="False" />
+    <Setter Property="Height" Value="22" />
+    <Setter Property="Padding" Value="8,0,10,0" />
+    <Setter Property="FontFamily" Value="{StaticResource Phase1SansSemiBoldFontFamily}" />
+    <Setter Property="FontSize" Value="{StaticResource Phase1CaptionFontSize}" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="ContentControl">
+          <Border Height="{TemplateBinding Height}" Padding="{TemplateBinding Padding}" CornerRadius="11"
+                  Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}">
+            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+              <Ellipse Width="6" Height="6" Fill="{TemplateBinding Foreground}" VerticalAlignment="Center" />
+              <ContentPresenter VerticalAlignment="Center" Foreground="{TemplateBinding Foreground}"
+                                FontFamily="{TemplateBinding FontFamily}" FontSize="{TemplateBinding FontSize}" FontWeight="{TemplateBinding FontWeight}" />
+            </StackPanel>
+          </Border>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+  <Style x:Key="Phase1LocalBadgeStyle" TargetType="ContentControl" BasedOn="{StaticResource Phase1BadgeStyle}">
+    <Setter Property="Background" Value="{ThemeResource Phase1LocalSoftBrush}" />
+    <Setter Property="Foreground" Value="{ThemeResource Phase1LocalInkBrush}" />
+  </Style>
+  <Style x:Key="Phase1AiBadgeStyle" TargetType="ContentControl" BasedOn="{StaticResource Phase1BadgeStyle}">
+    <Setter Property="Background" Value="{ThemeResource Phase1LimeBrush}" />
+    <Setter Property="Foreground" Value="{ThemeResource Phase1OnLimeBrush}" />
+  </Style>
+  <!-- Part-of-speech badge: no dot, outlined. -->
+  <Style x:Key="Phase1PosBadgeStyle" TargetType="Border">
+    <Setter Property="Height" Value="22" />
+    <Setter Property="Padding" Value="8,0" />
+    <Setter Property="CornerRadius" Value="11" />
+    <Setter Property="Background" Value="{ThemeResource Phase1BarRaisedBrush}" />
+    <Setter Property="BorderBrush" Value="{ThemeResource Phase1LineBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+  </Style>
+  <Style x:Key="Phase1QueryTextBoxStyle" TargetType="TextBox" BasedOn="{StaticResource DefaultTextBoxStyle}">
+    <Setter Property="FontFamily" Value="{StaticResource Phase1SansMediumFontFamily}" />
+    <Setter Property="FontSize" Value="{StaticResource Phase1QueryFontSize}" />
+    <Setter Property="FontWeight" Value="Medium" />
+    <Setter Property="CharacterSpacing" Value="{StaticResource Phase1QueryCharacterSpacing}" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="MinHeight" Value="30" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+  </Style>
+  <!-- Surface for Spotlight rows and tiles: flat, rounded, tinted only by bar-raised. -->
+  <Style x:Key="Phase1RowButtonStyle" TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="Foreground" Value="{ThemeResource Phase1InkBrush}" />
+    <Setter Property="Padding" Value="12,10" />
+    <Setter Property="CornerRadius" Value="{StaticResource Phase1RadiusMd}" />
+    <Setter Property="HorizontalAlignment" Value="Stretch" />
+    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+    <Setter Property="UseSystemFocusVisuals" Value="True" />
+  </Style>
+  <Style x:Key="Phase1TileButtonStyle" TargetType="Button" BasedOn="{StaticResource Phase1RowButtonStyle}">
+    <Setter Property="Background" Value="{ThemeResource Phase1BarRaisedBrush}" />
+    <Setter Property="Padding" Value="14" />
+    <Setter Property="VerticalAlignment" Value="Stretch" />
+    <Setter Property="VerticalContentAlignment" Value="Top" />
+  </Style>
+  <!-- Stroked 20px icons from docs/design/spotlight/icons; set Data and Stroke per use. -->
+  <Style x:Key="Phase1StrokeIconStyle" TargetType="Path">
+    <Setter Property="Width" Value="20" />
+    <Setter Property="Height" Value="20" />
+    <Setter Property="StrokeThickness" Value="1.5" />
+    <Setter Property="StrokeStartLineCap" Value="Round" />
+    <Setter Property="StrokeEndLineCap" Value="Round" />
+    <Setter Property="StrokeLineJoin" Value="Round" />
+    <Setter Property="Stretch" Value="None" />
   </Style>
   <Style x:Key="Phase1ActionButtonStyle" TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
     <Setter Property="FontFamily" Value="{StaticResource Phase1FontFamily}" />
@@ -42,9 +191,9 @@
     <Setter Property="MinHeight" Value="{StaticResource Phase1ActionMinHeight}" />
     <Setter Property="Padding" Value="{StaticResource Phase1ActionPadding}" />
     <Setter Property="CornerRadius" Value="{StaticResource Phase1ControlCornerRadius}" />
-    <Setter Property="Background" Value="{ThemeResource Phase1SurfaceBrush}" />
-    <Setter Property="Foreground" Value="{ThemeResource Phase1TextBrush}" />
-    <Setter Property="BorderBrush" Value="{ThemeResource Phase1BorderBrush}" />
+    <Setter Property="Background" Value="{ThemeResource Phase1BarRaisedBrush}" />
+    <Setter Property="Foreground" Value="{ThemeResource Phase1InkBrush}" />
+    <Setter Property="BorderBrush" Value="{ThemeResource Phase1LineBrush}" />
     <Setter Property="BorderThickness" Value="{StaticResource Phase1BorderThickness}" />
     <Setter Property="UseSystemFocusVisuals" Value="True" />
   </Style>
@@ -55,6 +204,7 @@
   </Style>
   <Style x:Key="Phase1GhostButtonStyle" TargetType="Button" BasedOn="{StaticResource Phase1ActionButtonStyle}">
     <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Foreground" Value="{ThemeResource Phase1InkMutedBrush}" />
     <Setter Property="BorderBrush" Value="Transparent" />
   </Style>
   <Style x:Key="Phase1SurfaceStyle" TargetType="Border">
@@ -75,15 +225,183 @@
   <Style x:Key="Phase1ErrorStatusStyle" TargetType="Border" BasedOn="{StaticResource Phase1StatusStyle}">
     <Setter Property="Background" Value="{ThemeResource Phase1ErrorSoftBrush}" />
   </Style>
+  <!-- Result detail parts (components.css card, chip, tab, icon button and latin headword classes). -->
+  <Style x:Key="Phase1CardStyle" TargetType="Border">
+    <Setter Property="Background" Value="{ThemeResource Phase1BarRaisedBrush}" />
+    <Setter Property="CornerRadius" Value="{StaticResource Phase1RadiusMd}" />
+    <Setter Property="Padding" Value="16" />
+  </Style>
+  <!-- AI output only: lime-soft says "came from AI". -->
+  <Style x:Key="Phase1AiCardStyle" TargetType="Border" BasedOn="{StaticResource Phase1CardStyle}">
+    <Setter Property="Background" Value="{ThemeResource Phase1LimeSoftBrush}" />
+  </Style>
+  <Style x:Key="Phase1CardFootStyle" TargetType="Border">
+    <Setter Property="BorderBrush" Value="{ThemeResource Phase1LineBrush}" />
+    <Setter Property="BorderThickness" Value="0,1,0,0" />
+    <Setter Property="Padding" Value="0,12,0,0" />
+  </Style>
+  <Style x:Key="Phase1ChipStyle" TargetType="Border">
+    <Setter Property="Background" Value="{ThemeResource Phase1BarBrush}" />
+    <Setter Property="BorderBrush" Value="{ThemeResource Phase1LineBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="{StaticResource Phase1RadiusSm}" />
+    <Setter Property="Padding" Value="10,6" />
+  </Style>
+  <Style x:Key="Phase1HeadwordLatinTextStyle" TargetType="TextBlock" BasedOn="{StaticResource Phase1BodyTextStyle}">
+    <Setter Property="FontFamily" Value="{StaticResource Phase1SansExtraBoldFontFamily}" />
+    <Setter Property="FontSize" Value="{StaticResource Phase1HeadwordJpFontSize}" />
+    <Setter Property="LineHeight" Value="{StaticResource Phase1HeadwordJpLineHeight}" />
+    <Setter Property="CharacterSpacing" Value="-10" />
+    <Setter Property="FontWeight" Value="ExtraBold" />
+  </Style>
+  <Style x:Key="Phase1IconButtonStyle" TargetType="Button" BasedOn="{StaticResource Phase1ActionButtonStyle}">
+    <Setter Property="Width" Value="36" />
+    <Setter Property="Height" Value="36" />
+    <Setter Property="MinHeight" Value="0" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="CornerRadius" Value="{StaticResource Phase1RadiusSm}" />
+  </Style>
+  <Style x:Key="Phase1SmallGhostIconButtonStyle" TargetType="Button" BasedOn="{StaticResource Phase1IconButtonStyle}">
+    <Setter Property="Width" Value="30" />
+    <Setter Property="Height" Value="30" />
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderBrush" Value="Transparent" />
+    <Setter Property="Foreground" Value="{ThemeResource Phase1InkMutedBrush}" />
+  </Style>
+  <Style x:Key="Phase1LinkButtonStyle" TargetType="HyperlinkButton">
+    <Setter Property="Foreground" Value="{ThemeResource Phase1KoiInkBrush}" />
+    <Setter Property="FontFamily" Value="{StaticResource Phase1SansSemiBoldFontFamily}" />
+    <Setter Property="FontSize" Value="{StaticResource Phase1CaptionFontSize}" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="Padding" Value="4,2" />
+  </Style>
+  <!-- Pill tabs: a RadioButton group keeps arrow-key movement and selection for assistive tech. -->
+  <Style x:Key="Phase1TabStyle" TargetType="RadioButton">
+    <Setter Property="Foreground" Value="{ThemeResource Phase1InkMutedBrush}" />
+    <Setter Property="FontFamily" Value="{StaticResource Phase1SansSemiBoldFontFamily}" />
+    <Setter Property="FontSize" Value="{StaticResource Phase1LabelFontSize}" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="Height" Value="28" />
+    <Setter Property="MinWidth" Value="0" />
+    <Setter Property="Padding" Value="12,0" />
+    <Setter Property="UseSystemFocusVisuals" Value="True" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="RadioButton">
+          <Grid x:Name="Root" Height="{TemplateBinding Height}" Padding="{TemplateBinding Padding}" CornerRadius="14"
+                Background="Transparent" BorderBrush="Transparent" BorderThickness="1">
+            <VisualStateManager.VisualStateGroups>
+              <VisualStateGroup x:Name="CommonStates">
+                <VisualState x:Name="Normal" />
+                <VisualState x:Name="PointerOver">
+                  <VisualState.Setters>
+                    <Setter Target="Label.Foreground" Value="{ThemeResource Phase1InkBrush}" />
+                  </VisualState.Setters>
+                </VisualState>
+                <VisualState x:Name="Pressed" />
+                <VisualState x:Name="Disabled">
+                  <VisualState.Setters>
+                    <Setter Target="Root.Opacity" Value="0.5" />
+                  </VisualState.Setters>
+                </VisualState>
+              </VisualStateGroup>
+              <VisualStateGroup x:Name="CheckStates">
+                <VisualState x:Name="Checked">
+                  <VisualState.Setters>
+                    <Setter Target="Root.Background" Value="{ThemeResource Phase1BarBrush}" />
+                    <Setter Target="Root.BorderBrush" Value="{ThemeResource Phase1LineBrush}" />
+                    <Setter Target="Label.Foreground" Value="{ThemeResource Phase1InkBrush}" />
+                  </VisualState.Setters>
+                </VisualState>
+                <VisualState x:Name="Unchecked" />
+                <VisualState x:Name="Indeterminate" />
+              </VisualStateGroup>
+            </VisualStateManager.VisualStateGroups>
+            <ContentPresenter x:Name="Label" VerticalAlignment="Center" HorizontalAlignment="Center" Content="{TemplateBinding Content}"
+                              Foreground="{TemplateBinding Foreground}" FontFamily="{TemplateBinding FontFamily}" FontSize="{TemplateBinding FontSize}" FontWeight="{TemplateBinding FontWeight}" />
+          </Grid>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+  <!-- Word picker (components.css .fl-word and its on/none modifiers, .fl-punct): 17/30 type, 0 5px padding, radius 7. -->
+  <Style x:Key="Phase1WordChipStyle" TargetType="RadioButton">
+    <Setter Property="Foreground" Value="{ThemeResource Phase1InkBrush}" />
+    <Setter Property="FontFamily" Value="{StaticResource Phase1SansRegularFontFamily}" />
+    <Setter Property="FontSize" Value="17" />
+    <Setter Property="MinWidth" Value="0" />
+    <Setter Property="Height" Value="30" />
+    <Setter Property="Padding" Value="5,0" />
+    <Setter Property="UseSystemFocusVisuals" Value="True" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="RadioButton">
+          <Grid Height="{TemplateBinding Height}" Background="Transparent">
+            <VisualStateManager.VisualStateGroups>
+              <VisualStateGroup x:Name="CommonStates">
+                <VisualState x:Name="Normal" />
+                <VisualState x:Name="PointerOver">
+                  <VisualState.Setters>
+                    <Setter Target="HoverFill.Opacity" Value="1" />
+                  </VisualState.Setters>
+                </VisualState>
+                <VisualState x:Name="Pressed">
+                  <VisualState.Setters>
+                    <Setter Target="HoverFill.Opacity" Value="1" />
+                  </VisualState.Setters>
+                </VisualState>
+                <VisualState x:Name="Disabled" />
+              </VisualStateGroup>
+              <VisualStateGroup x:Name="CheckStates">
+                <VisualState x:Name="Checked">
+                  <VisualState.Setters>
+                    <Setter Target="CheckedFill.Visibility" Value="Visible" />
+                    <Setter Target="Underline.Visibility" Value="Collapsed" />
+                  </VisualState.Setters>
+                </VisualState>
+                <VisualState x:Name="Unchecked" />
+                <VisualState x:Name="Indeterminate" />
+              </VisualStateGroup>
+            </VisualStateManager.VisualStateGroups>
+            <!-- Separate fills, so a hovered selected chip stays koi-soft. -->
+            <Border x:Name="HoverFill" CornerRadius="7" Background="{ThemeResource Phase1BarRaisedBrush}" Opacity="0" />
+            <Border x:Name="CheckedFill" CornerRadius="7" Background="{ThemeResource Phase1KoiSoftBrush}" BorderBrush="{ThemeResource Phase1KoiBrush}"
+                    BorderThickness="1.5" Visibility="Collapsed" />
+            <Grid Margin="{TemplateBinding Padding}">
+              <ContentPresenter VerticalAlignment="Center" Content="{TemplateBinding Content}" Foreground="{TemplateBinding Foreground}"
+                                FontFamily="{TemplateBinding FontFamily}" FontSize="{TemplateBinding FontSize}" />
+              <Rectangle x:Name="Underline" Height="1.5" Margin="0,0,0,2" VerticalAlignment="Bottom" Fill="{ThemeResource Phase1KoiInkBrush}" />
+            </Grid>
+          </Grid>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+  <Style x:Key="Phase1WordMissTextStyle" TargetType="TextBlock">
+    <Setter Property="FontFamily" Value="{StaticResource Phase1SansRegularFontFamily}" />
+    <Setter Property="FontSize" Value="17" />
+    <Setter Property="LineHeight" Value="30" />
+    <Setter Property="LineStackingStrategy" Value="BlockLineHeight" />
+    <Setter Property="Foreground" Value="{ThemeResource Phase1InkMutedBrush}" />
+    <Setter Property="Padding" Value="5,0" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+    <Setter Property="IsTextSelectionEnabled" Value="False" />
+  </Style>
+  <Style x:Key="Phase1WordPunctTextStyle" TargetType="TextBlock" BasedOn="{StaticResource Phase1WordMissTextStyle}">
+    <Setter Property="Padding" Value="0" />
+  </Style>
+  <Style x:Key="Phase1ShimmerStyle" TargetType="Border">
+    <Setter Property="Height" Value="14" />
+    <Setter Property="CornerRadius" Value="7" />
+    <Setter Property="Background" Value="{ThemeResource Phase1LineBrush}" />
+    <Setter Property="HorizontalAlignment" Value="Left" />
+  </Style>
   <!-- Native tint applies semantic theme colors to the unchanged exported alpha artwork. -->
   <Style x:Key="Phase1IconStyle" TargetType="BitmapIcon">
     <Setter Property="Width" Value="{StaticResource Phase1IconSize}" />
     <Setter Property="Height" Value="{StaticResource Phase1IconSize}" />
     <Setter Property="ShowAsMonochrome" Value="True" />
     <Setter Property="Foreground" Value="{ThemeResource Phase1TextBrush}" />
-  </Style>
-  <Style x:Key="Phase1CloseIconStyle" TargetType="BitmapIcon" BasedOn="{StaticResource Phase1IconStyle}">
-    <Setter Property="UriSource" Value="ms-appx:///Assets/Phase1/Close.png" />
   </Style>
   <Style x:Key="Phase1CopyIconStyle" TargetType="BitmapIcon" BasedOn="{StaticResource Phase1IconStyle}">
     <Setter Property="UriSource" Value="ms-appx:///Assets/Phase1/Copy.png" />
@@ -108,6 +426,6 @@
   </Style>
   <Style x:Key="Phase1ScanIconStyle" TargetType="BitmapIcon" BasedOn="{StaticResource Phase1IconStyle}">
     <Setter Property="UriSource" Value="ms-appx:///Assets/Phase1/Scan.png" />
-    <Setter Property="Foreground" Value="{ThemeResource Phase1AccentBrush}" />
+    <Setter Property="Foreground" Value="{ThemeResource Phase1KoiInkBrush}" />
   </Style>
 </ResourceDictionary>

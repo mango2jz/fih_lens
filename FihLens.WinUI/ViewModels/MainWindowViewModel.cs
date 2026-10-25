@@ -32,6 +32,7 @@ public partial class MainWindowViewModel : ObservableObject
         AiStatusText = translationService is null ? _aiUnavailableReason : "Ready";
     }
 
+    public bool IsAiAvailable => _translationService is not null;
     public string AiSendNotice => _translationService is null
         ? _aiUnavailableReason : $"Sends this text to {_providerLabel}.";
     public PronunciationViewModel Pronunciation { get; }
@@ -78,6 +79,12 @@ public partial class MainWindowViewModel : ObservableObject
 
     partial void OnDictionaryResultChanged(DictionaryLookupResult? value) => DictionaryCards =
         value?.Entries.Select(entry => new DictionaryCardViewModel(entry, Pronunciation)).ToArray() ?? [];
+
+    /// <summary>Region captures look up each word as well, for the popup's word picker.</summary>
+    public bool SplitDictionaryWords { get; set; }
+    /// <summary>Per-word results of the last lookup; empty unless <see cref="SplitDictionaryWords"/> is set.</summary>
+    [ObservableProperty]
+    public partial IReadOnlyList<DictionaryWordResult> DictionaryWords { get; set; } = [];
     [ObservableProperty]
     public partial string DictionaryText { get; set; } = "";
     [ObservableProperty]
@@ -124,6 +131,7 @@ public partial class MainWindowViewModel : ObservableObject
             previous.Reason == _dictionaries.GetAvailability(sourceLanguage, targetLanguage).Reason) return;
         if (SourceLanguage != sourceLanguage || TargetLanguage != targetLanguage) return;
         if (_dictionaryOperation && IsBusy) InvalidateOperation();
+        DictionaryWords = [];
         DictionaryResult = null;
         DictionaryText = "";
         UpdateDictionaryStatus();
@@ -166,6 +174,7 @@ public partial class MainWindowViewModel : ObservableObject
     private void ClearResultsForEdit()
     {
         Result = null;
+        DictionaryWords = [];
         DictionaryResult = null;
         DictionaryText = "";
         DictionaryInputSnapshot = "";
@@ -192,6 +201,7 @@ public partial class MainWindowViewModel : ObservableObject
         _dictionaryOperation = dictionary;
         if (dictionary)
         {
+            DictionaryWords = [];
             DictionaryResult = null;
             DictionaryText = "";
             DictionaryErrorMessage = null;
@@ -210,12 +220,23 @@ public partial class MainWindowViewModel : ObservableObject
         {
             if (dictionary)
             {
-                var result = await _dictionaries.LookupAsync(text, SourceLanguage, TargetLanguage, cancellation.Token);
+                DictionaryLookupResult result;
+                IReadOnlyList<DictionaryWordResult> words = [];
+                if (SplitDictionaryWords)
+                {
+                    var lookup = await _dictionaries.LookupWordsAsync(text, SourceLanguage, TargetLanguage, cancellation.Token);
+                    (result, words) = (lookup.Phrase.Result, lookup.Words);
+                }
+                else result = await _dictionaries.LookupAsync(text, SourceLanguage, TargetLanguage, cancellation.Token);
                 if (!IsCurrent(generation, cancellation.Token)) return;
+                // Words first: observers refreshing on DictionaryResult then see both.
+                DictionaryWords = words;
                 DictionaryResult = result;
                 DictionaryText = string.Join("\n\n", DictionaryCards.Select(card => card.CopyText));
                 DictionaryStatusText = result.IsTruncated ? "More entries available; use a written form to narrow this reading."
-                    : result.IsMatch ? "Dictionary match" : "No exact dictionary entry for this text. Try a dictionary form or use Ask AI.";
+                    : result.IsMatch ? "Dictionary match"
+                    : words.Count(word => word.Result.IsMatch) is > 0 and var found ? $"{found} of {words.Count} words found"
+                    : "No exact dictionary entry for this text. Try a dictionary form or use Ask AI.";
             }
             else
             {
@@ -284,6 +305,20 @@ public partial class MainWindowViewModel : ObservableObject
         InvalidateOperation();
         if (_dictionaryOperation) DictionaryStatusText = "Dictionary lookup canceled";
         else AiStatusText = "AI translation canceled";
+    }
+
+    /// <summary>Shows another session's text and AI answer here, so the launcher can explain a capture popup.</summary>
+    public void AdoptResult(MainWindowViewModel source)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        if (_closed) return;
+        SourceLanguage = source.SourceLanguage;
+        TargetLanguage = source.TargetLanguage;
+        InputText = source.AiInputSnapshot.Length > 0 ? source.AiInputSnapshot : source.InputText;
+        if (source.Result is null || source.AiInputSnapshot != InputText) return;
+        Result = source.Result;
+        AiInputSnapshot = source.AiInputSnapshot;
+        AiStatusText = "AI translation complete";
     }
 
     public void Close()

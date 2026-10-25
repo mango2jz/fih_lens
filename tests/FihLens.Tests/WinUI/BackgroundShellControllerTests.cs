@@ -94,5 +94,24 @@ public sealed class BackgroundShellControllerTests
         Assert.Equal(1, trayRetries);
     }
 
+    [Theory]
+    [InlineData(true, false, false, true)]
+    [InlineData(false, true, false, true)]
+    [InlineData(false, false, false, false)]
+    [InlineData(true, true, true, false)]
+    public void LauncherHidesOnlyWhenTrayOrHotkeyCanReopenIt(bool tray, bool hotkey, bool modal, bool expected)
+    {
+        Assert.Equal(expected, Create().CanHide(tray, hotkey, modal));
+    }
+
+    [Fact]
+    public void LauncherStaysVisibleWhileExiting()
+    {
+        var controller = Create();
+        controller.RequestExit();
+
+        Assert.False(controller.CanHide(true, true, false));
+    }
+
     private static BackgroundShellController Create() => new(() => { }, () => RegionCaptureRequestOutcome.Started, () => { });
 }

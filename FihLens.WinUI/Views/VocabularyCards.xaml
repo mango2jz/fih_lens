@@ -3,27 +3,40 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:vm="using:FihLens.WinUI.ViewModels">
+  <!-- AI-provided words; the host places this inside an AI card. -->
   <ItemsControl ItemsSource="{x:Bind Items, Mode=OneWay}">
+    <ItemsControl.ItemsPanel>
+      <ItemsPanelTemplate><StackPanel Spacing="12" /></ItemsPanelTemplate>
+    </ItemsControl.ItemsPanel>
     <ItemsControl.ItemTemplate>
       <DataTemplate x:DataType="vm:VocabularyCardViewModel">
-        <StackPanel Margin="0,6" Spacing="4">
-          <Grid ColumnSpacing="8">
-            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-            <TextBlock Text="{x:Bind Item.Word}" FontWeight="SemiBold" TextWrapping="Wrap" IsTextSelectionEnabled="True" VerticalAlignment="Center" />
-            <Button Grid.Column="1" Command="{x:Bind Pronunciation.SpeakCommand}" CommandParameter="{x:Bind SpeechText}"
-                    AutomationProperties.Name="{x:Bind SpeechAutomationName}" ToolTipService.ToolTip="{x:Bind SpeechHint}">
-              <SymbolIcon Symbol="Volume" />
-            </Button>
-          </Grid>
-          <TextBlock Text="{x:Bind Item.Reading}" Visibility="{x:Bind HasReading}" TextWrapping="Wrap" IsTextSelectionEnabled="True" AutomationProperties.Name="Japanese reading" />
-          <TextBlock Text="{x:Bind Item.Phonetic}" TextWrapping="Wrap" IsTextSelectionEnabled="True" />
-          <TextBlock Text="{x:Bind Item.PartOfSpeech}" Opacity="0.75" TextWrapping="Wrap" IsTextSelectionEnabled="True" />
-          <TextBlock Text="{x:Bind BaseFormText}" Visibility="{x:Bind HasBaseForm}" TextWrapping="Wrap" IsTextSelectionEnabled="True" />
-          <TextBlock Text="{x:Bind Item.Meaning}" TextWrapping="Wrap" IsTextSelectionEnabled="True" />
-          <TextBlock Text="{x:Bind SynonymsText}" TextWrapping="Wrap" IsTextSelectionEnabled="True" />
-          <TextBlock Text="{x:Bind SpeechUnavailableReason}" Visibility="{x:Bind HasSpeechUnavailableReason}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
-          <TextBlock Text="{x:Bind Item.ExampleSentence}" TextWrapping="Wrap" IsTextSelectionEnabled="True" />
-        </StackPanel>
+        <Border Style="{StaticResource Phase1ChipStyle}" Padding="12,10">
+          <StackPanel Spacing="4">
+            <Grid ColumnSpacing="8">
+              <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <TextBlock Text="{x:Bind Item.Word}" Style="{StaticResource Phase1LabelTextStyle}" FontSize="15" LineHeight="22" VerticalAlignment="Center" />
+                <TextBlock Text="{x:Bind Item.Reading}" Visibility="{x:Bind HasReading}" Style="{StaticResource Phase1ReadingTextStyle}" VerticalAlignment="Center"
+                           AutomationProperties.Name="Japanese reading" />
+                <TextBlock Text="{x:Bind Item.Phonetic}" Style="{StaticResource Phase1CaptionTextStyle}" VerticalAlignment="Center" />
+                <Border Style="{StaticResource Phase1PosBadgeStyle}">
+                  <TextBlock Text="{x:Bind Item.PartOfSpeech}" Style="{StaticResource Phase1CaptionTextStyle}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                </Border>
+              </StackPanel>
+              <Button Grid.Column="1" Style="{StaticResource Phase1SmallGhostIconButtonStyle}" Command="{x:Bind Pronunciation.SpeakCommand}" CommandParameter="{x:Bind SpeechText}"
+                      AutomationProperties.Name="{x:Bind SpeechAutomationName}" ToolTipService.ToolTip="{x:Bind SpeechHint}">
+                <Path Style="{StaticResource Phase1StrokeIconStyle}" Stroke="{ThemeResource Phase1InkMutedBrush}"
+                      Data="M3.5 8H6.5L10.5 4.5V15.5L6.5 12H3.5V8ZM13.5 7.5C14.5 8.6 14.5 11.4 13.5 12.5M16 5C18 7.5 18 12.5 16 15" />
+              </Button>
+            </Grid>
+            <TextBlock Text="{x:Bind Item.Meaning}" Style="{StaticResource Phase1BodyTextStyle}" />
+            <TextBlock Text="{x:Bind BaseFormText}" Visibility="{x:Bind HasBaseForm}" Style="{StaticResource Phase1CaptionTextStyle}" />
+            <TextBlock Text="{x:Bind SynonymsText}" Style="{StaticResource Phase1CaptionTextStyle}" />
+            <TextBlock Text="{x:Bind Item.ExampleSentence}" Style="{StaticResource Phase1CaptionTextStyle}" />
+            <TextBlock Text="{x:Bind SpeechUnavailableReason}" Visibility="{x:Bind HasSpeechUnavailableReason}" Style="{StaticResource Phase1CaptionTextStyle}"
+                       AutomationProperties.LiveSetting="Polite" />
+          </StackPanel>
+        </Border>
       </DataTemplate>
     </ItemsControl.ItemTemplate>
   </ItemsControl>

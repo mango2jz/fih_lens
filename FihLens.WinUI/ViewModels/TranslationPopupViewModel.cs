@@ -17,6 +17,7 @@ public sealed class TranslationPopupViewModel : ObservableObject
     private ICommand? _askAi;
     private ICommand? _cancel;
     private ICommand? _previewSave;
+    private Action? _openDetail;
     private ICommand? _previewUndo;
     private ICommand? _selectAgain;
     private CancellationTokenSource? _copyCancellation;
@@ -27,22 +28,54 @@ public sealed class TranslationPopupViewModel : ObservableObject
     private string _aiStatus = "";
     private bool _isBusy;
     private bool _hasBackendError;
+    private bool _captureStage;
     private string _backendErrorMessage = "";
     private string _aiSendNotice = "AI unavailable: no configured provider command.";
     private PopupPreviewState _previewState;
     private IReadOnlyList<VocabularyItem> _vocabulary = [];
     private DictionaryLookupResult? _dictionaryResult;
     private bool _dictionaryOnly;
+    // Word picker: the backend list it was built from, the whole-text candidate and the current selection.
+    private IReadOnlyList<DictionaryWordResult>? _wordSource;
+    private IReadOnlyList<DictionaryWordResult> _words = [];
+    private DictionaryWordResult? _phrase;
+    private bool _phraseMode;
+    private int _selectedWord = -1;
 
     public Language SourceLanguage { get; private set; } = Language.English;
     public Language TargetLanguage { get; private set; } = Language.Vietnamese;
     public string InputLabel => SourceLanguage.ToString();
     public string LanguagePairLabel => $"{SourceLanguage} → {TargetLanguage}";
+    public string LanguagePairCode => $"{LanguageCode(SourceLanguage)} → {LanguageCode(TargetLanguage)}";
+
+    /// <summary>Two-letter uppercase code for pills and headers (EN, VI, JA).</summary>
+    public static string LanguageCode(Language language) => language switch
+    {
+        Language.English => "EN", Language.Vietnamese => "VI", Language.Japanese => "JA", _ => "AUTO"
+    };
     public PronunciationViewModel Pronunciation { get; private set; } = new();
     public IReadOnlyList<VocabularyCardViewModel> WordCards { get; private set; } = [];
     public IReadOnlyList<DictionaryCardViewModel> DictionaryCards { get; private set; } = [];
     public bool HasDictionaryCards => DictionaryCards.Count > 0;
     public bool ShowOutputText => HasOutput && !_dictionaryOnly;
+
+    /// <summary>Captured text as selectable candidates: one whole-phrase chip, or one per word.</summary>
+    public IReadOnlyList<WordChoice> WordChoices { get; private set; } = [];
+    public int SelectedWordIndex => _phraseMode ? 0 : _selectedWord;
+    public DictionaryWordResult? SelectedWord => _phraseMode ? _phrase : _selectedWord >= 0 ? _words[_selectedWord] : null;
+    public bool ShowWordPicker => _dictionaryOnly && ShowAnswer && WordChoices.Count > 0;
+    public bool IsWholePhrase => ShowWordPicker && _phraseMode;
+    private int FoundWordCount => _words.Count(word => word.Result.IsMatch);
+    public string WordsFoundText => _phraseMode ? "Whole phrase" : $"{FoundWordCount} of {_words.Count} words found";
+    public bool ShowLocalBadge => ShowWordPicker && (_phraseMode || FoundWordCount > 0);
+    public bool HasNoWordEntries => ShowWordPicker && SelectedWord is null;
+    public bool ShowWordKeys => ShowWordPicker && SelectedWord is not null;
+    public bool ShowWordMoveKeys => ShowWordKeys && !_phraseMode && FoundWordCount > 1;
+    public bool ShowSourceLine => !ShowWordPicker;
+    public bool ShowOutputUnavailable => HasNoOutput && !ShowWordPicker;
+    public bool ShowLocalDictionarySource => HasDictionaryCards && !ShowWordPicker;
+    public bool ShowResultIcons => ShowResultActions && !ShowWordPicker;
+    public bool ShowExplainButton => ShowResultActions && !ShowWordPicker;
     public string LocalDictionarySource => _dictionaryResult is { } result ? $"Local dictionary · {result.Source.Name} · {result.Source.QualityStatus}" : "";
 
     public void BindPronunciation(PronunciationViewModel pronunciation, Language source, Language target)
@@ -75,7 +108,12 @@ public sealed class TranslationPopupViewModel : ObservableObject
         ExpandedText = expandedText;
         CloseCommand = new RelayCommand(Close, () => !IsClosed);
         ToggleExpansionCommand = new RelayCommand(ToggleExpansion, () => ShowResultActions && HasExpandedContent && !IsClosed);
-        CopyCommand = new AsyncRelayCommand(CopyAsync, () => !IsClosed && HasOutput && _clipboard is not null && _copyCancellation is null);
+        ExplainCommand = new RelayCommand(Explain, CanExplain);
+        CopyCommand = new AsyncRelayCommand(() => CopyAsync(ShowWordPicker ? SelectedWord?.Word.Text : null),
+            () => !IsClosed && HasOutput && _clipboard is not null && _copyCancellation is null);
+        CopyOriginalCommand = new AsyncRelayCommand(() => CopyAsync(OriginalText),
+            () => !IsClosed && ShowWordPicker && _clipboard is not null && _copyCancellation is null);
+        SplitIntoWordsCommand = new RelayCommand(SplitIntoWords, () => !IsClosed && IsWholePhrase);
         AskAiCommand = new RelayCommand(() => { if (CanAskAi()) _askAi!.Execute(null); }, CanAskAi);
         CancelCommand = new RelayCommand(Cancel, () => !IsClosed &&
             (_copyCancellation is { IsCancellationRequested: false } || IsBusy && _cancel?.CanExecute(null) == true));
@@ -96,7 +134,7 @@ public sealed class TranslationPopupViewModel : ObservableObject
     public bool IsExpanded => _isExpanded;
     public bool IsCollapsed => !IsExpanded;
     public string ExplainButtonText => IsExpanded ? "Less" : "Explain";
-    public string ExplainAutomationName => !HasExpandedContent ? "Explanation unavailable" :
+    public string ExplainAutomationName => _openDetail is not null ? "Explain in the FIH Lens bar" : !HasExpandedContent ? "Explanation unavailable" :
         IsExpanded ? "Collapse details" : "Expand details";
     public bool IsPreview { get; }
     public bool HasOutput => ShowAnswer && !string.IsNullOrWhiteSpace(OutputText);
@@ -115,7 +153,11 @@ public sealed class TranslationPopupViewModel : ObservableObject
     public string AiSendNotice => _aiSendNotice;
     public bool IsBusy => _isBusy;
     public bool HasStatus => IsBusy || DictionaryStatus.Length > 0 || AiStatus.Length > 0 || CopyFeedback.Length > 0 || IsPreview;
-    public bool ShowAnswer => !IsPreview || _previewState is not (PopupPreviewState.OcrLoading or PopupPreviewState.OcrError or PopupPreviewState.EmptyOcr or PopupPreviewState.Translating or PopupPreviewState.TranslationError);
+    // A capture popup shows its stage (reading, canceled, failed) until recognized text arrives.
+    public bool IsCaptureError => _captureStage && _hasBackendError;
+    public bool ShowStageAlert => IsOcrErrorPreview || IsAiErrorPreview || IsCaptureError;
+    public bool ShowSelectAgain => IsOcrErrorPreview || IsCaptureError;
+    public bool ShowAnswer => !_captureStage && (!IsPreview || _previewState is not (PopupPreviewState.OcrLoading or PopupPreviewState.OcrError or PopupPreviewState.EmptyOcr or PopupPreviewState.Translating or PopupPreviewState.TranslationError));
     public bool ShowResultActions => ShowAnswer;
     public bool ShowStageActions => !ShowAnswer || !HasOutput;
     public bool HasStageStatus => DictionaryStatus.Length > 0 || AiStatus.Length > 0;
@@ -124,7 +166,8 @@ public sealed class TranslationPopupViewModel : ObservableObject
     public bool IsNotPreviewSaved => !IsPreviewSaved;
     public bool IsErrorStatus => _copyFailed || _hasBackendError || _previewState is PopupPreviewState.OcrError or PopupPreviewState.EmptyOcr or PopupPreviewState.TranslationError or PopupPreviewState.SaveError or PopupPreviewState.CopyError or PopupPreviewState.DictionaryError;
     public bool IsSuccessFeedback => _previewState is PopupPreviewState.Copied or PopupPreviewState.Saved or PopupPreviewState.ExpandedSaved || CopyFeedback == "Copied.";
-    public bool HasDictionaryStatus => DictionaryStatus.Length > 0;
+    // The word picker's meta line replaces the lookup status.
+    public bool HasDictionaryStatus => DictionaryStatus.Length > 0 && !ShowWordPicker;
     public bool HasAiStatus => AiStatus.Length > 0;
     public bool IsOcrLoadingPreview => IsPreview && _previewState == PopupPreviewState.OcrLoading;
     public bool IsTranslatingPreview => IsPreview && _previewState == PopupPreviewState.Translating;
@@ -133,11 +176,11 @@ public sealed class TranslationPopupViewModel : ObservableObject
     public bool IsAiErrorPreview => IsPreview && _previewState == PopupPreviewState.TranslationError;
     public bool IsSaveErrorPreview => IsPreview && _previewState == PopupPreviewState.SaveError;
     public bool IsPreviewStage => IsProcessingPreview || IsOcrErrorPreview || IsAiErrorPreview;
-    public bool ShowBackendStatuses => !IsPreviewStage;
-    public string StageHeading => IsOcrLoadingPreview ? "Reading selected text…" : IsTranslatingPreview ? $"Translating to {TargetLanguage}…" : IsOcrErrorPreview ? "No readable text found" : IsAiErrorPreview ? "Translation unavailable" : "";
-    public string StageDescription => IsOcrLoadingPreview ? "Keep working. This popup will update when the text is ready." : IsTranslatingPreview ? "Text recognized. Finding the meaning in this context." : IsOcrErrorPreview ? "Try a larger region with sharper text." : IsAiErrorPreview ? "The translation provider is unavailable. Your selected text is still here." : "";
-    public string FirstProcessingStep => IsOcrLoadingPreview ? "1  OCR · in progress" : "✓  OCR · complete";
-    public string SecondProcessingStep => IsOcrLoadingPreview ? "2  Local dictionary · next" : "AI · explicitly requested";
+    public bool ShowBackendStatuses => !IsPreviewStage && !IsCaptureError;
+    public string StageHeading => IsOcrLoadingPreview ? "Reading selected text…" : IsTranslatingPreview ? $"Translating to {TargetLanguage}…" : IsOcrErrorPreview ? "No readable text here" : IsAiErrorPreview ? "Translation unavailable" : IsCaptureError ? "Nothing to translate yet" : "";
+    public string StageDescription => IsOcrLoadingPreview ? "Keep working. This popup will update when the text is ready." : IsTranslatingPreview ? "Text recognized. Finding the meaning in this context." : IsOcrErrorPreview ? "Try a bigger region with sharper text." : IsAiErrorPreview ? "The translation provider is unavailable. Your selected text is still here." : IsCaptureError ? DictionaryStatus : "";
+    public string FirstProcessingStep => IsOcrLoadingPreview ? "Reading text" : "Text read";
+    public string SecondProcessingStep => IsOcrLoadingPreview ? "Dictionary" : "Asking AI";
     public string RetainedTextLabel => IsOcrErrorPreview ? "Selection" : IsAiErrorPreview ? $"{SourceLanguage} · recognized text" : "Selected text";
     public string RetainedText => IsOcrErrorPreview ? "The selected region contained no clear text." : OriginalText;
     public bool ShowRetainedText => IsPreviewStage && !IsOcrLoadingPreview;
@@ -173,7 +216,38 @@ public sealed class TranslationPopupViewModel : ObservableObject
     public bool IsClosed => _isClosed;
     public IRelayCommand CloseCommand { get; }
     public IRelayCommand ToggleExpansionCommand { get; }
+    /// <summary>Opens the launcher's Result detail when one is attached; otherwise expands in place (design preview).</summary>
+    public IRelayCommand ExplainCommand { get; }
+
+    public void SetOpenDetail(Action openDetail)
+    {
+        _openDetail = openDetail ?? throw new ArgumentNullException(nameof(openDetail));
+        ExplainCommand.NotifyCanExecuteChanged();
+        OnPropertyChanged(nameof(ExplainAutomationName));
+    }
+
+    /// <summary>Select again after a failed capture closes this popup and starts a new region capture.</summary>
+    public void SetSelectAgain(Action selectAgain)
+    {
+        ArgumentNullException.ThrowIfNull(selectAgain);
+        _selectAgain = new RelayCommand(selectAgain);
+        SelectAgainCommand.NotifyCanExecuteChanged();
+    }
+
+    private bool CanExplain() => !IsClosed && (_openDetail is not null
+        ? ShowAnswer && (!ShowWordPicker || SelectedWord is not null) : ToggleExpansionCommand.CanExecute(null));
+
+    private void Explain()
+    {
+        if (!CanExplain()) return;
+        if (_openDetail is { } open) open();
+        else ToggleExpansionCommand.Execute(null);
+    }
+    /// <summary>Copies the selected word in the word picker, otherwise the current output.</summary>
     public IAsyncRelayCommand CopyCommand { get; }
+    /// <summary>Copies the whole captured text (word picker only).</summary>
+    public IAsyncRelayCommand CopyOriginalCommand { get; }
+    public IRelayCommand SplitIntoWordsCommand { get; }
     public IRelayCommand AskAiCommand { get; }
     public IRelayCommand CancelCommand { get; }
     public IRelayCommand SaveCommand { get; }
@@ -237,10 +311,11 @@ public sealed class TranslationPopupViewModel : ObservableObject
         if (IsClosed || IsPreview || !string.Equals(OriginalText, backend.InputText, StringComparison.Ordinal)) return;
         var snapshot = backend.Result is { } translation
             ? FromTranslation(translation, backend.AiSourceLabel)
-            : backend.DictionaryResult is { } dictionary ? FromDictionary(dictionary) :
+            : backend.DictionaryResult is { } dictionary ? FromDictionary(SyncWords(backend.DictionaryWords, dictionary), backend.InputText) :
                 ForInput(backend.InputText, backend.SourceLanguage, backend.TargetLanguage);
         ApplySnapshot(snapshot);
-        _dictionaryResult = backend.DictionaryResult;
+        // A dictionary-only snapshot already holds the selected word's result.
+        if (backend.Result is not null) _dictionaryResult = backend.DictionaryResult;
         BindPronunciation(Pronunciation, snapshot.SourceLanguage, snapshot.TargetLanguage);
         if (backend.Result is not null)
         {
@@ -254,6 +329,72 @@ public sealed class TranslationPopupViewModel : ObservableObject
             SourceDetails = backend.DictionarySourceDetails;
         }
         PresentBackendState(backend);
+    }
+
+    // Rebuilds the picker only for a new lookup, so backend refreshes keep the user's selection.
+    private DictionaryLookupResult SyncWords(IReadOnlyList<DictionaryWordResult> words, DictionaryLookupResult phrase)
+    {
+        if (!ReferenceEquals(_wordSource, words))
+        {
+            _wordSource = words;
+            _words = words;
+            _phrase = DictionaryWords.Phrase(phrase.OriginalText) is { } whole ? new(whole, phrase) : null;
+            // A one-word text is a word, not a phrase.
+            _phraseMode = _phrase is not null && phrase.IsMatch && words.Count > 1;
+            _selectedWord = FirstFoundWord();
+            BuildWordChoices();
+        }
+        return SelectedWord?.Result ?? phrase;
+    }
+
+    private int FirstFoundWord()
+    {
+        for (int i = 0; i < _words.Count; i++)
+            if (_words[i].Result.IsMatch) return i;
+        return -1;
+    }
+
+    private void BuildWordChoices()
+    {
+        WordChoices = _phraseMode
+            ? [new WordChoice(0, _phrase!.Word, true, $"{_phrase.Word.Text}, whole phrase, has dictionary entry")]
+            : _words.Select((word, i) => new WordChoice(i, word.Word, word.Result.IsMatch,
+                $"{word.Word.Text}, {(word.Result.IsMatch ? "has dictionary entry" : "no dictionary entry")}")).ToArray();
+        OnPropertyChanged(nameof(WordChoices));
+    }
+
+    /// <summary>Selects a found word and shows its cards; not-found words cannot be selected.</summary>
+    public bool SelectWord(int index)
+    {
+        if (IsClosed || !ShowWordPicker || _phraseMode || index == _selectedWord ||
+            (uint)index >= (uint)_words.Count || !_words[index].Result.IsMatch) return false;
+        _selectedWord = index;
+        ApplyWordSelection();
+        return true;
+    }
+
+    /// <summary>Moves to the previous or next found word.</summary>
+    public bool MoveWordSelection(int direction)
+    {
+        if (_selectedWord < 0) return false;
+        for (int i = _selectedWord + Math.Sign(direction); i >= 0 && i < _words.Count; i += Math.Sign(direction))
+            if (_words[i].Result.IsMatch) return SelectWord(i);
+        return false;
+    }
+
+    private void SplitIntoWords()
+    {
+        if (!IsWholePhrase) return;
+        _phraseMode = false;
+        _selectedWord = FirstFoundWord();
+        BuildWordChoices();
+        ApplyWordSelection();
+    }
+
+    private void ApplyWordSelection()
+    {
+        ApplySnapshot(FromDictionary(SelectedWord?.Result ?? _phrase!.Result, OriginalText));
+        NotifyState();
     }
 
     // Refresh the existing popup without retiring commands or canceling its live backend.
@@ -290,6 +431,7 @@ public sealed class TranslationPopupViewModel : ObservableObject
     internal void PresentCaptureStatus(string message, bool busy, bool error)
     {
         if (IsClosed || IsPreview) return;
+        _captureStage = true;
         _dictionaryStatus = message;
         _isBusy = busy;
         _hasBackendError = error;
@@ -301,6 +443,7 @@ public sealed class TranslationPopupViewModel : ObservableObject
     internal void SetCapturedInput(string text)
     {
         if (IsClosed || IsPreview) return;
+        _captureStage = false;
         ApplySnapshot(ForInput(text, SourceLanguage, TargetLanguage));
         NotifyState();
     }
@@ -308,9 +451,10 @@ public sealed class TranslationPopupViewModel : ObservableObject
     private bool CanAskAi() => !IsClosed && !IsBusy && _askAi?.CanExecute(null) == true;
     private void BackendCanExecuteChanged(object? sender, EventArgs args) => AskAiCommand.NotifyCanExecuteChanged();
 
-    private async Task CopyAsync()
+    // Copies plainText as is, or the current output with its dictionary attribution when null.
+    private async Task CopyAsync(string? plainText)
     {
-        if (IsClosed || !HasOutput || _clipboard is null || _copyCancellation is not null) return;
+        if (IsClosed || (plainText is null && !HasOutput) || _clipboard is null || _copyCancellation is not null) return;
         var cancellation = new CancellationTokenSource();
         _copyCancellation = cancellation;
         long generation = ++_copyGeneration;
@@ -319,9 +463,9 @@ public sealed class TranslationPopupViewModel : ObservableObject
         NotifyState();
         try
         {
-            string copyText = _dictionaryOnly ? string.Join("\n\n", DictionaryCards.Select(card => card.CopyText))
-                : OutputText + (HasDictionaryCards ? "\n\nLocal dictionary\n" + string.Join("\n\n", DictionaryCards.Select(card => card.CopyText)) : "");
-            if (HasDictionaryCards && _dictionaryResult is { Source: var source })
+            string copyText = plainText ?? (_dictionaryOnly ? string.Join("\n\n", DictionaryCards.Select(card => card.CopyText))
+                : OutputText + (HasDictionaryCards ? "\n\nLocal dictionary\n" + string.Join("\n\n", DictionaryCards.Select(card => card.CopyText)) : ""));
+            if (plainText is null && HasDictionaryCards && _dictionaryResult is { Source: var source })
                 copyText += $"\n\nDictionary: {source.Name}\nSource URL: {source.SourceUrl}\nLicense: {source.License}\nRevision: {source.Revision}";
             await _clipboard.WriteTextAsync(copyText, cancellation.Token);
             if (!IsClosed && generation == _copyGeneration && !cancellation.IsCancellationRequested)
@@ -394,14 +538,20 @@ public sealed class TranslationPopupViewModel : ObservableObject
 
     private void NotifyState()
     {
-        foreach (string property in new[] { nameof(DictionaryStatus), nameof(AiStatus), nameof(CopyFeedback), nameof(AiSendNotice), nameof(IsBusy), nameof(HasStatus), nameof(PreviewStateName), nameof(IsPreviewSaving), nameof(IsPreviewSaved), nameof(SaveButtonText), nameof(SaveFeedback), nameof(PreferredHeight), nameof(UnavailableActionsReason), nameof(ShowAnswer), nameof(ShowResultActions), nameof(ShowStageActions), nameof(HasStageStatus), nameof(HasFeedback), nameof(HasFeedbackStrip), nameof(IsNotPreviewSaved), nameof(IsErrorStatus), nameof(IsSuccessFeedback), nameof(HasOutput), nameof(HasNoOutput), nameof(HasVocabulary), nameof(HasDictionaryStatus), nameof(HasAiStatus), nameof(IsOcrLoadingPreview), nameof(IsTranslatingPreview), nameof(IsProcessingPreview), nameof(IsOcrErrorPreview), nameof(IsAiErrorPreview), nameof(IsSaveErrorPreview), nameof(IsPreviewStage), nameof(ShowBackendStatuses), nameof(StageHeading), nameof(StageDescription), nameof(FirstProcessingStep), nameof(SecondProcessingStep), nameof(RetainedTextLabel), nameof(RetainedText), nameof(ShowRetainedText), nameof(ShowFooter) }) OnPropertyChanged(property);
+        foreach (string property in new[] { nameof(DictionaryStatus), nameof(AiStatus), nameof(CopyFeedback), nameof(AiSendNotice), nameof(IsBusy), nameof(HasStatus), nameof(PreviewStateName), nameof(IsPreviewSaving), nameof(IsPreviewSaved), nameof(SaveButtonText), nameof(SaveFeedback), nameof(PreferredHeight), nameof(UnavailableActionsReason), nameof(ShowAnswer), nameof(ShowResultActions), nameof(ShowStageActions), nameof(HasStageStatus), nameof(HasFeedback), nameof(HasFeedbackStrip), nameof(IsNotPreviewSaved), nameof(IsErrorStatus), nameof(IsSuccessFeedback), nameof(HasOutput), nameof(HasNoOutput), nameof(HasVocabulary), nameof(HasDictionaryStatus), nameof(HasAiStatus), nameof(IsOcrLoadingPreview), nameof(IsTranslatingPreview), nameof(IsProcessingPreview), nameof(IsOcrErrorPreview), nameof(IsAiErrorPreview), nameof(IsSaveErrorPreview), nameof(IsPreviewStage), nameof(ShowBackendStatuses), nameof(StageHeading), nameof(StageDescription), nameof(FirstProcessingStep), nameof(SecondProcessingStep), nameof(RetainedTextLabel), nameof(RetainedText), nameof(ShowRetainedText), nameof(ShowFooter), nameof(IsCaptureError), nameof(ShowStageAlert), nameof(ShowSelectAgain),
+            nameof(SelectedWordIndex), nameof(SelectedWord), nameof(ShowWordPicker), nameof(IsWholePhrase), nameof(WordsFoundText), nameof(ShowLocalBadge),
+            nameof(HasNoWordEntries), nameof(ShowWordKeys), nameof(ShowWordMoveKeys), nameof(ShowSourceLine), nameof(ShowOutputUnavailable),
+            nameof(ShowLocalDictionarySource), nameof(ShowResultIcons), nameof(ShowExplainButton) }) OnPropertyChanged(property);
         CopyCommand.NotifyCanExecuteChanged();
+        CopyOriginalCommand.NotifyCanExecuteChanged();
+        SplitIntoWordsCommand.NotifyCanExecuteChanged();
         AskAiCommand.NotifyCanExecuteChanged();
         CancelCommand.NotifyCanExecuteChanged();
         SaveCommand.NotifyCanExecuteChanged();
         UndoCommand.NotifyCanExecuteChanged();
         SelectAgainCommand.NotifyCanExecuteChanged();
         ToggleExpansionCommand.NotifyCanExecuteChanged();
+        ExplainCommand.NotifyCanExecuteChanged();
     }
 
     public static TranslationPopupViewModel FromTranslation(TranslationResult result, string providerLabel,
@@ -444,7 +594,8 @@ public sealed class TranslationPopupViewModel : ObservableObject
         return popup;
     }
 
-    public static TranslationPopupViewModel FromDictionary(DictionaryLookupResult result)
+    /// <param name="originalText">The captured text when <paramref name="result"/> is for one of its words.</param>
+    public static TranslationPopupViewModel FromDictionary(DictionaryLookupResult result, string? originalText = null)
     {
         ArgumentNullException.ThrowIfNull(result);
         DictionarySource source = result.Source;
@@ -456,7 +607,7 @@ public sealed class TranslationPopupViewModel : ObservableObject
         string details =
             $"Source: {source.Name} ({source.SourceId})\nRevision: {source.Revision}\nLanguages: {source.SourceLanguage} → {source.TargetLanguage}\nQuality: {source.QualityStatus}\nHuman review scope: {source.HumanReviewScope}\nLicense: {source.License}\nSource URL: {source.SourceUrl}\nAttribution: {source.Attribution}\n\n" +
             string.Join("\n\n", source.Notices.Select(notice => $"{notice.Key}\n{notice.Value}"));
-        var popup = new TranslationPopupViewModel(result.OriginalText, output, "Dictionary definitions",
+        var popup = new TranslationPopupViewModel(originalText ?? result.OriginalText, output, "Dictionary definitions",
             $"{source.Name} · {source.QualityStatus}", details, "",
             "No exact dictionary entry for this text.", "Dictionary senses and source",
             string.Join("\n\n", new[] { output, details }.Where(value => !string.IsNullOrWhiteSpace(value))), false);
@@ -501,6 +652,7 @@ public sealed class TranslationPopupViewModel : ObservableObject
         _copyGeneration++;
         _copyCancellation?.Cancel();
         if (_askAi is not null) _askAi.CanExecuteChanged -= BackendCanExecuteChanged;
+        _openDetail = null;
         SetProperty(ref _isClosed, true, nameof(IsClosed));
         if (_cancel?.CanExecute(null) == true) _cancel.Execute(null);
         CloseCommand.NotifyCanExecuteChanged();
@@ -509,6 +661,9 @@ public sealed class TranslationPopupViewModel : ObservableObject
         CloseRequested?.Invoke(this, EventArgs.Empty);
     }
 }
+
+/// <summary>One chip in the word picker; <see cref="Index"/> is its position in the picker.</summary>
+public sealed record WordChoice(int Index, DictionaryWord Word, bool HasEntry, string AutomationName);
 
 public enum PopupPreviewState
 {

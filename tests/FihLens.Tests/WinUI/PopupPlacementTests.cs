@@ -117,4 +117,19 @@ public sealed class PopupPlacementTests
         Assert.True((long)bounds.X + bounds.Width <= (long)work.X + work.Width);
         Assert.True((long)bounds.Y + bounds.Height <= (long)work.Y + work.Height);
     }
+
+    [Theory]
+    [InlineData(0, 0, 1920, 1040, 1, 300, 620, 173, 680, 300)]
+    [InlineData(-1920, 40, 1920, 1040, 1.5, 300, -1470, 213, 1020, 450)]
+    // Taller than the space below the upper third: moves up to stay inside the work area.
+    [InlineData(0, 0, 1920, 1040, 1, 1000, 620, 40, 680, 1000)]
+    // Narrower than the bar: fills the work area width.
+    [InlineData(0, 0, 600, 800, 1, 300, 0, 133, 600, 300)]
+    public void SpotlightCentresInUpperThirdAndStaysOnScreen(int workX, int workY, int workWidth, int workHeight,
+        double scale, double heightDip, int x, int y, int width, int height)
+    {
+        var result = PopupPlacement.CalculateSpotlight(new PixelRect(workX, workY, workWidth, workHeight), 680, heightDip, scale);
+
+        Assert.Equal(new PixelRect(x, y, width, height), result);
+    }
 }

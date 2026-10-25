@@ -2,156 +2,555 @@
     x:Class="FihLens.WinUI.MainWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:FihLens.WinUI"
+    xmlns:vm="using:FihLens.WinUI.ViewModels"
+    xmlns:models="using:FihLens.Core.Models"
+    xmlns:capture="using:FihLens.Windows.Capture"
     xmlns:views="using:FihLens.WinUI.Views"
     Title="FIH Lens">
 
-    <Window.SystemBackdrop>
-        <MicaBackdrop />
-    </Window.SystemBackdrop>
+    <!-- A Canvas measures the bar at its natural height, so the window can follow the content. -->
+    <Canvas x:Name="WindowRoot" Background="{ThemeResource Phase1BarBrush}">
+        <Grid x:Name="BarRoot" Width="680">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
 
-    <Grid Padding="20" MaxWidth="900" HorizontalAlignment="Stretch" RowSpacing="12">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
-        </Grid.RowDefinitions>
-
-        <StackPanel Spacing="8">
-            <TextBlock Text="{x:Bind ViewModel.LanguagePairLabel, Mode=OneWay}" Style="{ThemeResource TitleTextBlockStyle}" />
-            <StackPanel Orientation="Horizontal" Spacing="8">
-                <ComboBox Header="From" ItemsSource="{x:Bind ViewModel.AvailableLanguages}"
-                          SelectedItem="{x:Bind ViewModel.SourceLanguage, Mode=TwoWay}"
-                          IsEnabled="{x:Bind ViewModel.IsEditingEnabled, Mode=OneWay}" AutomationProperties.Name="Source language" />
-                <ComboBox Header="To" ItemsSource="{x:Bind ViewModel.AvailableLanguages}"
-                          SelectedItem="{x:Bind ViewModel.TargetLanguage, Mode=TwoWay}"
-                          IsEnabled="{x:Bind ViewModel.IsEditingEnabled, Mode=OneWay}" AutomationProperties.Name="Target language" />
-            </StackPanel>
-            <TextBlock Text="{x:Bind ViewModel.LanguagePairUnavailableReason, Mode=OneWay}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
-            <Button Content="Dictionaries" Click="Dictionaries_Click" AccessKey="D" AutomationProperties.Name="Manage local dictionaries" />
-            <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                <TextBlock x:Name="ShellStatus" Text="Ctrl+Shift+Space captures selected text. Select a screen region here or from the tray."
-                           TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
-                <Button x:Name="RetryHotkeyButton" Content="Retry hotkey" Click="RetryHotkey_Click" />
-                <Button x:Name="RetryShellButton" Content="Retry shell" Click="RetryShell_Click" />
-                <Button Content="Exit" Click="Exit_Click" AutomationProperties.Name="Exit FIH Lens" />
-            </StackPanel>
-        </StackPanel>
-
-        <Grid Grid.Row="1" ColumnSpacing="8">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
-            </Grid.ColumnDefinitions>
-            <TextBox x:Name="InputBox" Text="{x:Bind ViewModel.InputText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                     IsEnabled="{x:Bind ViewModel.IsEditingEnabled, Mode=OneWay}"
-                     Height="40" VerticalContentAlignment="Center" KeyDown="InputBox_KeyDown"
-                     PlaceholderText="Enter a word, phrase, or sentence" AutomationProperties.Name="{x:Bind ViewModel.SourceLanguageLabel, Mode=OneWay}" />
-            <Button Grid.Column="1" Content="Search" Height="40" Command="{x:Bind ViewModel.LookupDictionaryCommand, Mode=OneWay}" AccessKey="L"
-                    AutomationProperties.Name="Search local dictionary" />
-        </Grid>
-
-        <StackPanel Grid.Row="2" Spacing="6">
-            <StackPanel Orientation="Horizontal" Spacing="8">
-                <ComboBox x:Name="CaptureDisplayPicker" Width="220" DisplayMemberPath="Name"
-                          AutomationProperties.Name="Display to capture" />
-                <Button x:Name="SelectRegionButton" Content="Select screen region" Click="SelectRegion_Click" />
-                <Button x:Name="CancelCaptureButton" Content="Cancel capture" Click="CancelCapture_Click" IsEnabled="False" />
-            </StackPanel>
-            <TextBlock x:Name="CaptureStatus" Text="Select one display, then select a region. OCR and dictionary lookup stay on this device."
-                       TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
-            <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
-                <Button x:Name="DesignPreviewButton" Content="Open compact design preview (sample data)"
-                        Visibility="Collapsed" Click="DesignPreview_Click" />
-                <ComboBox x:Name="DesignPreviewStatePicker" Visibility="Collapsed" Width="180"
-                          AutomationProperties.Name="Design preview state (sample data only)" />
-                <ComboBox x:Name="DesignPreviewThemePicker" Visibility="Collapsed" Width="110"
-                          AutomationProperties.Name="Design preview theme (this popup only)" />
-                <Button Content="Ask AI" Command="{x:Bind ViewModel.AskAiCommand, Mode=OneWay}" AccessKey="A" Click="AskAi_Click" />
-                <Button Content="Cancel" AccessKey="C" Command="{x:Bind ViewModel.CancelCommand, Mode=OneWay}" />
-                <ProgressRing IsActive="{x:Bind ViewModel.IsBusy, Mode=OneWay}"
-                              Width="28" Height="28"
-                              AutomationProperties.Name="Operation in progress" />
-            </StackPanel>
-            <TextBlock x:Name="DesignPreviewError" Visibility="Collapsed" TextWrapping="Wrap"
-                       AutomationProperties.LiveSetting="Assertive" />
-            <TextBlock Text="Dictionary lookup stays on this device. Only Ask AI sends text online." TextWrapping="Wrap" Opacity="0.75" />
-            <TextBlock Text="{x:Bind ViewModel.AiSendNotice, Mode=OneWay}" Opacity="0.75" TextWrapping="Wrap" />
-            <TextBlock Text="Ask AI adds word details and source-language synonyms. Near-synonyms can differ in nuance." Opacity="0.75" TextWrapping="Wrap" />
-            <StackPanel Orientation="Horizontal" Spacing="8">
-                <Button Command="{x:Bind ViewModel.Pronunciation.SpeakCommand}" CommandParameter="{x:Bind ViewModel.Pronunciation.SourceText, Mode=OneWay}"
-                        AutomationProperties.Name="{x:Bind ViewModel.Pronunciation.SourceAutomationName, Mode=OneWay}"
-                        ToolTipService.ToolTip="{x:Bind ViewModel.Pronunciation.SourceUnavailableReason, Mode=OneWay}">
-                    <SymbolIcon Symbol="Volume" />
-                </Button>
-                <Button Content="Stop audio" Command="{x:Bind ViewModel.Pronunciation.StopCommand}" />
-            </StackPanel>
-            <TextBlock Text="{x:Bind ViewModel.Pronunciation.SourceUnavailableReason, Mode=OneWay}" TextWrapping="Wrap" />
-            <TextBlock Text="{x:Bind ViewModel.Pronunciation.Status, Mode=OneWay}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
-        </StackPanel>
-
-        <ScrollViewer Grid.Row="3" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-            <StackPanel Spacing="12">
-                <TextBlock Text="{x:Bind ViewModel.DictionaryInputSnapshot, Mode=OneWay}" Style="{ThemeResource SubtitleTextBlockStyle}"
-                           IsTextSelectionEnabled="True" TextWrapping="Wrap" AutomationProperties.Name="Dictionary input snapshot" />
-                <TextBlock Text="{x:Bind ViewModel.DictionarySourceLabel, Mode=OneWay}" IsTextSelectionEnabled="True" TextWrapping="Wrap" />
-                <TextBlock Text="{x:Bind ViewModel.DictionaryStatusText, Mode=OneWay}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
-                <TextBlock Text="{x:Bind ViewModel.DictionaryErrorMessage, Mode=OneWay}" TextWrapping="Wrap" Foreground="{ThemeResource SystemFillColorCriticalBrush}" AutomationProperties.LiveSetting="Assertive" />
-                <views:DictionaryCards Items="{x:Bind ViewModel.DictionaryCards, Mode=OneWay}" AutomationProperties.Name="Local dictionary definitions and sources" />
-                <Expander Header="Dictionary source and license" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
-                    <TextBox Text="{x:Bind ViewModel.DictionarySourceDetails, Mode=OneWay}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" MaxHeight="260" AutomationProperties.Name="Dictionary attribution, license and full notices" />
-                </Expander>
-                <Expander x:Name="AiDetails" Header="AI translation and learning notes" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
-                    <StackPanel Spacing="8">
-                        <TextBlock Text="{x:Bind ViewModel.AiSourceLabel, Mode=OneWay}" IsTextSelectionEnabled="True" TextWrapping="Wrap" />
-                        <TextBlock Text="{x:Bind ViewModel.AiStatusText, Mode=OneWay}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
-                        <TextBlock Text="{x:Bind ViewModel.ErrorMessage, Mode=OneWay}" TextWrapping="Wrap" Foreground="{ThemeResource SystemFillColorCriticalBrush}" AutomationProperties.LiveSetting="Assertive" />
-                        <TextBlock Text="AI input" Style="{ThemeResource SubtitleTextBlockStyle}" />
-                        <TextBox Text="{x:Bind ViewModel.AiInputSnapshot, Mode=OneWay}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" AutomationProperties.Name="AI input snapshot" />
-                        <TextBlock Text="Original text" Style="{ThemeResource SubtitleTextBlockStyle}" />
-                        <TextBox Text="{x:Bind ViewModel.Result.OriginalText, Mode=OneWay}" IsReadOnly="True" AcceptsReturn="True"
-                                 TextWrapping="Wrap" MinHeight="60" IsTabStop="True" AutomationProperties.Name="Original text" />
-                        <TextBlock Text="{x:Bind ViewModel.TargetLanguageLabel, Mode=OneWay}" Style="{ThemeResource SubtitleTextBlockStyle}" />
-                        <TextBox Text="{x:Bind ViewModel.Result.NaturalTranslation, Mode=OneWay}" IsReadOnly="True" AcceptsReturn="True"
-                                 TextWrapping="Wrap" MinHeight="70" IsTabStop="True" AutomationProperties.Name="{x:Bind ViewModel.TargetLanguageLabel, Mode=OneWay}" />
-                        <TextBlock Text="Explanation" Style="{ThemeResource SubtitleTextBlockStyle}" />
-                        <TextBox Text="{x:Bind ViewModel.Result.Explanation, Mode=OneWay}" IsReadOnly="True" AcceptsReturn="True"
-                                 TextWrapping="Wrap" MinHeight="50" IsTabStop="True" AutomationProperties.Name="Explanation" />
-                        <TextBlock Text="Context" Style="{ThemeResource SubtitleTextBlockStyle}" />
-                        <TextBox Text="{x:Bind ViewModel.Result.Context, Mode=OneWay}" IsReadOnly="True" AcceptsReturn="True"
-                                 TextWrapping="Wrap" IsTabStop="True" AutomationProperties.Name="Context" />
-                        <TextBlock Text="Tone" Style="{ThemeResource SubtitleTextBlockStyle}" />
-                        <TextBox Text="{x:Bind ViewModel.Result.Tone, Mode=OneWay}" IsReadOnly="True" AcceptsReturn="True"
-                                 TextWrapping="Wrap" IsTabStop="True" AutomationProperties.Name="Tone" />
-                        <TextBlock Text="Vocabulary" Style="{ThemeResource SubtitleTextBlockStyle}" />
-                        <views:VocabularyCards Items="{x:Bind ViewModel.WordCards, Mode=OneWay}" />
-                <TextBlock Text="Grammar" Style="{ThemeResource SubtitleTextBlockStyle}" />
-                <ItemsControl ItemsSource="{x:Bind ViewModel.Result.Grammar, Mode=OneWay}">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <StackPanel Margin="0,4" Spacing="2">
-                                <TextBlock IsTextSelectionEnabled="True" TextWrapping="Wrap" Text="{Binding Pattern}" FontWeight="SemiBold" />
-                                <TextBlock IsTextSelectionEnabled="True" TextWrapping="Wrap" Text="{Binding Explanation}" />
-                                <TextBlock IsTextSelectionEnabled="True" TextWrapping="Wrap" Text="{Binding ExampleSentence}" />
-                              </StackPanel>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-                <TextBlock Text="Alternative translations" Style="{ThemeResource SubtitleTextBlockStyle}" />
-                <ItemsControl ItemsSource="{x:Bind ViewModel.Result.Alternatives, Mode=OneWay}">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <StackPanel Margin="0,4" Spacing="2">
-                                <TextBlock IsTextSelectionEnabled="True" TextWrapping="Wrap" Text="{Binding Text}" />
-                                <TextBlock IsTextSelectionEnabled="True" TextWrapping="Wrap" Text="{Binding Explanation}" />
-                              </StackPanel>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
+            <!-- Input: mark, query, language pill. -->
+            <Grid Padding="18,14,16,14" ColumnSpacing="{StaticResource Phase1Space12}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <!-- The mark (logo/svg/fihlens-mark-*.svg) drawn with theme brushes; the tile is this Border. -->
+                <Border Width="34" Height="34" CornerRadius="9" Background="{ThemeResource Phase1BarRaisedBrush}"
+                        BorderBrush="{ThemeResource Phase1LineBrush}" BorderThickness="1" VerticalAlignment="Center"
+                        AutomationProperties.AccessibilityView="Raw">
+                    <Viewbox>
+                        <Canvas Width="64" Height="64">
+                            <Rectangle Canvas.Left="12" Canvas.Top="15" Width="40" Height="6" RadiusX="3" RadiusY="3" Fill="{ThemeResource Phase1InkMutedBrush}" />
+                            <Rectangle Canvas.Left="12" Canvas.Top="29" Width="10" Height="6" RadiusX="3" RadiusY="3" Fill="{ThemeResource Phase1InkMutedBrush}" />
+                            <Rectangle Canvas.Left="12" Canvas.Top="43" Width="28" Height="6" RadiusX="3" RadiusY="3" Fill="{ThemeResource Phase1InkMutedBrush}" />
+                            <Rectangle Canvas.Left="26" Canvas.Top="25" Width="28" Height="14" RadiusX="5" RadiusY="5" Fill="{ThemeResource Phase1KoiBrush}" />
+                            <Rectangle Canvas.Left="30" Canvas.Top="30" Width="20" Height="4" RadiusX="2" RadiusY="2" Fill="{ThemeResource Phase1OnKoiBrush}" />
+                        </Canvas>
+                    </Viewbox>
+                </Border>
+                <TextBox x:Name="InputBox" Grid.Column="1" Style="{StaticResource Phase1QueryTextBoxStyle}"
+                         Text="{x:Bind ViewModel.InputText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                         PlaceholderText="Type or paste — English, Tiếng Việt, 日本語"
+                         KeyDown="InputBox_KeyDown"
+                         AutomationProperties.Name="{x:Bind ViewModel.SourceLanguageLabel, Mode=OneWay}">
+                    <TextBox.Resources>
+                        <SolidColorBrush x:Key="TextControlBackground" Color="Transparent" />
+                        <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="Transparent" />
+                        <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="Transparent" />
+                        <SolidColorBrush x:Key="TextControlBackgroundDisabled" Color="Transparent" />
+                        <SolidColorBrush x:Key="TextControlBorderBrush" Color="Transparent" />
+                        <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="Transparent" />
+                        <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="Transparent" />
+                        <SolidColorBrush x:Key="TextControlBorderBrushDisabled" Color="Transparent" />
+                    </TextBox.Resources>
+                </TextBox>
+                <Border Grid.Column="2" Height="34" Padding="3" VerticalAlignment="Center" CornerRadius="17"
+                        Background="{ThemeResource Phase1BarRaisedBrush}" BorderBrush="{ThemeResource Phase1LineBrush}" BorderThickness="1">
+                    <StackPanel Orientation="Horizontal" Spacing="2">
+                        <Button x:Name="SourceButton" Style="{StaticResource Phase1RowButtonStyle}" Height="26" Padding="10,0" CornerRadius="13"
+                                FontFamily="{StaticResource Phase1SansBoldFontFamily}" FontSize="{StaticResource Phase1LabelFontSize}" FontWeight="Bold" CharacterSpacing="20"
+                                Content="{x:Bind local:MainWindow.LanguageCode(ViewModel.SourceLanguage), Mode=OneWay}" AccessKey="F"
+                                AutomationProperties.Name="{x:Bind local:MainWindow.LanguageButtonName('Translate from', ViewModel.SourceLanguage), Mode=OneWay}">
+                            <Button.Flyout>
+                                <MenuFlyout x:Name="SourceMenu" Opening="LanguageMenu_Opening">
+                                    <RadioMenuFlyoutItem Text="English" Tag="English" Click="SourceLanguage_Click" />
+                                    <RadioMenuFlyoutItem Text="Tiếng Việt" Tag="Vietnamese" Click="SourceLanguage_Click" />
+                                    <RadioMenuFlyoutItem Text="日本語" Tag="Japanese" Click="SourceLanguage_Click" />
+                                </MenuFlyout>
+                            </Button.Flyout>
+                        </Button>
+                        <Button Style="{StaticResource Phase1RowButtonStyle}" Width="26" Height="26" Padding="0" CornerRadius="13"
+                                Click="SwapLanguages_Click" ToolTipService.ToolTip="Swap languages (Ctrl+.)" AutomationProperties.Name="Swap languages">
+                            <Path Style="{StaticResource Phase1StrokeIconStyle}" Stroke="{ThemeResource Phase1KoiInkBrush}" Data="M4 7H16M16 7L13 4M16 13H4M4 13L7 16"
+                                  RenderTransformOrigin="0.5,0.5">
+                                <Path.RenderTransform><ScaleTransform ScaleX="0.8" ScaleY="0.8" /></Path.RenderTransform>
+                            </Path>
+                        </Button>
+                        <Button x:Name="TargetButton" Style="{StaticResource Phase1RowButtonStyle}" Height="26" Padding="10,0" CornerRadius="13"
+                                FontFamily="{StaticResource Phase1SansBoldFontFamily}" FontSize="{StaticResource Phase1LabelFontSize}" FontWeight="Bold" CharacterSpacing="20"
+                                Content="{x:Bind local:MainWindow.LanguageCode(ViewModel.TargetLanguage), Mode=OneWay}" AccessKey="T"
+                                AutomationProperties.Name="{x:Bind local:MainWindow.LanguageButtonName('Translate to', ViewModel.TargetLanguage), Mode=OneWay}">
+                            <Button.Flyout>
+                                <MenuFlyout x:Name="TargetMenu" Opening="LanguageMenu_Opening">
+                                    <RadioMenuFlyoutItem Text="English" Tag="English" Click="TargetLanguage_Click" />
+                                    <RadioMenuFlyoutItem Text="Tiếng Việt" Tag="Vietnamese" Click="TargetLanguage_Click" />
+                                    <RadioMenuFlyoutItem Text="日本語" Tag="Japanese" Click="TargetLanguage_Click" />
+                                </MenuFlyout>
+                            </Button.Flyout>
+                        </Button>
                     </StackPanel>
-                </Expander>
-            </StackPanel>
-        </ScrollViewer>
-    </Grid>
+                </Border>
+            </Grid>
 
+            <!-- Status: shown only when something needs attention. Children collapse when empty. -->
+            <StackPanel Grid.Row="1" Padding="18,0,16,0">
+                <TextBlock x:Name="PairStatus" Text="{x:Bind ViewModel.LanguagePairUnavailableReason, Mode=OneWay}" Style="{StaticResource Phase1CaptionTextStyle}" Margin="0,0,0,10"
+                           Visibility="Collapsed" AutomationProperties.LiveSetting="Polite" />
+                <TextBlock x:Name="ShellStatus" Style="{StaticResource Phase1CaptionTextStyle}" Margin="0,0,0,10" AutomationProperties.LiveSetting="Polite"
+                           Visibility="Collapsed" />
+                <TextBlock x:Name="CaptureStatus" Style="{StaticResource Phase1CaptionTextStyle}" Margin="0,0,0,10" AutomationProperties.LiveSetting="Polite"
+                           Visibility="Collapsed" />
+                <TextBlock x:Name="DesignPreviewError" Visibility="Collapsed" Style="{StaticResource Phase1CaptionTextStyle}" Margin="0,0,0,10"
+                           Foreground="{ThemeResource Phase1DangerBrush}" AutomationProperties.LiveSetting="Assertive" />
+                <StackPanel Orientation="Horizontal" Spacing="{StaticResource Phase1Space8}">
+                    <Button x:Name="OfferRegionButton" Content="Select region" Click="SelectRegion_Click" Visibility="Collapsed"
+                            Style="{StaticResource Phase1PrimaryButtonStyle}" Margin="0,0,0,10" />
+                    <Button x:Name="CancelCaptureButton" Content="Cancel capture" Click="CancelCapture_Click" IsEnabled="False"
+                            Visibility="{x:Bind CancelCaptureButton.IsEnabled, Mode=OneWay}" Style="{StaticResource Phase1ActionButtonStyle}" Margin="0,0,0,10" />
+                    <Button x:Name="RetryHotkeyButton" Content="Retry hotkey" Click="RetryHotkey_Click" IsEnabled="False"
+                            Visibility="{x:Bind RetryHotkeyButton.IsEnabled, Mode=OneWay}" Style="{StaticResource Phase1ActionButtonStyle}" Margin="0,0,0,10" />
+                    <Button x:Name="RetryShellButton" Content="Retry tray" Click="RetryShell_Click" IsEnabled="False"
+                            Visibility="{x:Bind RetryShellButton.IsEnabled, Mode=OneWay}" Style="{StaticResource Phase1ActionButtonStyle}" Margin="0,0,0,10" />
+                    <Button x:Name="ExitButton" Content="Exit" Click="Exit_Click" Visibility="Collapsed" AutomationProperties.Name="Exit FIH Lens"
+                            Style="{StaticResource Phase1ActionButtonStyle}" Margin="0,0,0,10" />
+                </StackPanel>
+            </StackPanel>
+
+            <Border Grid.Row="2" BorderBrush="{ThemeResource Phase1LineBrush}" BorderThickness="0,1,0,0">
+                <Grid>
+                    <!-- Empty input: three quick tiles. -->
+                    <Grid x:Name="QuickTiles" Padding="8" ColumnSpacing="{StaticResource Phase1Space8}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Button x:Name="SelectRegionButton" Style="{StaticResource Phase1TileButtonStyle}" Click="SelectRegion_Click" AccessKey="R"
+                                AutomationProperties.Name="Capture a screen region">
+                            <StackPanel Spacing="10">
+                                <Path Style="{StaticResource Phase1StrokeIconStyle}" Stroke="{ThemeResource Phase1KoiInkBrush}" HorizontalAlignment="Left"
+                                      Data="M3 7V3H7M13 3H17V7M17 13V17H13M7 17H3V13M6 10H14" />
+                                <StackPanel Spacing="4">
+                                    <TextBlock Text="Capture a screen region" Style="{StaticResource Phase1LabelTextStyle}" FontSize="14" LineHeight="20" IsTextSelectionEnabled="False" />
+                                    <TextBlock Text="Read text from anything on screen" Style="{StaticResource Phase1CaptionTextStyle}" IsTextSelectionEnabled="False" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Button>
+                        <Border Grid.Column="1" Padding="14" CornerRadius="{StaticResource Phase1RadiusMd}" Background="{ThemeResource Phase1BarRaisedBrush}">
+                            <StackPanel Spacing="10">
+                                <Grid>
+                                    <Path Style="{StaticResource Phase1StrokeIconStyle}" Stroke="{ThemeResource Phase1KoiInkBrush}" HorizontalAlignment="Left" Data="M4 5H16M4 10H16M4 15H11" />
+                                    <StackPanel Orientation="Horizontal" Spacing="3" HorizontalAlignment="Right">
+                                        <ContentControl Style="{StaticResource Phase1KeycapStyle}" Content="Ctrl" />
+                                        <ContentControl Style="{StaticResource Phase1KeycapStyle}" Content="Shift" />
+                                        <ContentControl Style="{StaticResource Phase1KeycapStyle}" Content="Space" />
+                                    </StackPanel>
+                                </Grid>
+                                <StackPanel Spacing="4">
+                                    <TextBlock Text="Translate selected text" Style="{StaticResource Phase1LabelTextStyle}" FontSize="14" LineHeight="20" IsTextSelectionEnabled="False" />
+                                    <TextBlock Text="Works in any app, popup opens beside it" Style="{StaticResource Phase1CaptionTextStyle}" IsTextSelectionEnabled="False" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                        <Button Grid.Column="2" Style="{StaticResource Phase1TileButtonStyle}" Click="Dictionaries_Click" AccessKey="D"
+                                AutomationProperties.Name="Manage local dictionaries">
+                            <StackPanel Spacing="10">
+                                <Path Style="{StaticResource Phase1StrokeIconStyle}" Stroke="{ThemeResource Phase1KoiInkBrush}" HorizontalAlignment="Left"
+                                      Data="M3.5 4.5C5.5 4 8.5 4 10 5.5C11.5 4 14.5 4 16.5 4.5V15.5C14.5 15 11.5 15 10 16.5C8.5 15 5.5 15 3.5 15.5V4.5ZM10 5.5V16.5" />
+                                <StackPanel Spacing="4">
+                                    <TextBlock Text="Dictionaries" Style="{StaticResource Phase1LabelTextStyle}" FontSize="14" LineHeight="20" IsTextSelectionEnabled="False" />
+                                    <TextBlock Text="Choose which languages work offline" Style="{StaticResource Phase1CaptionTextStyle}" IsTextSelectionEnabled="False" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Button>
+                    </Grid>
+
+                    <!-- Typing: dictionary rows first, then one Ask AI row. -->
+                    <StackPanel x:Name="ResultsPanel" Padding="8" Visibility="Collapsed">
+                        <StackPanel Orientation="Horizontal" Spacing="{StaticResource Phase1Space8}" Padding="10,6,10,4">
+                            <TextBlock Text="Dictionary" Style="{StaticResource Phase1CaptionTextStyle}" FontWeight="SemiBold" VerticalAlignment="Center" IsTextSelectionEnabled="False" />
+                            <ContentControl Style="{StaticResource Phase1LocalBadgeStyle}" Content="On this device" />
+                        </StackPanel>
+                        <TextBlock x:Name="DictionaryStatusLine" Text="{x:Bind ViewModel.DictionaryStatusText, Mode=OneWay}" Style="{StaticResource Phase1BodyTextStyle}"
+                                   Foreground="{ThemeResource Phase1InkMutedBrush}" Margin="12,6,12,8" AutomationProperties.LiveSetting="Polite" />
+                        <TextBlock Text="{x:Bind ViewModel.DictionaryErrorMessage, Mode=OneWay}" Style="{StaticResource Phase1BodyTextStyle}" Foreground="{ThemeResource Phase1DangerBrush}"
+                                   Margin="12,0,12,8" Visibility="{x:Bind local:MainWindow.Shown(ViewModel.DictionaryErrorMessage), Mode=OneWay}" AutomationProperties.LiveSetting="Assertive" />
+                        <ListView x:Name="ResultsList" ItemsSource="{x:Bind ViewModel.DictionaryCards, Mode=OneWay}" MaxHeight="360"
+                                  SelectionMode="Single" IsItemClickEnabled="True" ItemClick="ResultsList_ItemClick" SelectionChanged="ResultsList_SelectionChanged"
+                                  AutomationProperties.Name="Local dictionary results">
+                            <ListView.Resources>
+                                <SolidColorBrush x:Key="ListViewItemBackgroundSelected" Color="Transparent" />
+                                <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPointerOver" Color="Transparent" />
+                                <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPressed" Color="Transparent" />
+                                <x:Boolean x:Key="ListViewItemSelectionIndicatorVisualEnabled">False</x:Boolean>
+                            </ListView.Resources>
+                            <ListView.ItemContainerStyle>
+                                <Style TargetType="ListViewItem" BasedOn="{StaticResource DefaultListViewItemStyle}">
+                                    <Setter Property="Padding" Value="0" />
+                                    <Setter Property="Margin" Value="0" />
+                                    <Setter Property="MinHeight" Value="0" />
+                                    <Setter Property="CornerRadius" Value="{StaticResource Phase1RadiusMd}" />
+                                    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                </Style>
+                            </ListView.ItemContainerStyle>
+                            <ListView.ItemTemplate>
+                                <DataTemplate x:DataType="vm:DictionaryCardViewModel">
+                                    <Grid AutomationProperties.Name="{x:Bind Headword}">
+                                        <Border CornerRadius="{StaticResource Phase1RadiusMd}" Background="{ThemeResource Phase1KoiSoftBrush}" Visibility="{x:Bind IsSelected, Mode=OneWay}" />
+                                        <Grid Padding="12,10" ColumnSpacing="{StaticResource Phase1Space12}">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <Grid Width="32" Height="32" VerticalAlignment="Center">
+                                                <Border CornerRadius="10" Background="{ThemeResource Phase1BarRaisedBrush}">
+                                                    <Path Style="{StaticResource Phase1StrokeIconStyle}" Stroke="{ThemeResource Phase1InkMutedBrush}"
+                                                          Data="M3.5 4.5C5.5 4 8.5 4 10 5.5C11.5 4 14.5 4 16.5 4.5V15.5C14.5 15 11.5 15 10 16.5C8.5 15 5.5 15 3.5 15.5V4.5ZM10 5.5V16.5" />
+                                                </Border>
+                                                <Border CornerRadius="10" Background="{ThemeResource Phase1KoiBrush}" Visibility="{x:Bind IsSelected, Mode=OneWay}">
+                                                    <Path Style="{StaticResource Phase1StrokeIconStyle}" Stroke="{ThemeResource Phase1OnKoiBrush}"
+                                                          Data="M3.5 4.5C5.5 4 8.5 4 10 5.5C11.5 4 14.5 4 16.5 4.5V15.5C14.5 15 11.5 15 10 16.5C8.5 15 5.5 15 3.5 15.5V4.5ZM10 5.5V16.5" />
+                                                </Border>
+                                            </Grid>
+                                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                <StackPanel Orientation="Horizontal" Spacing="{StaticResource Phase1Space8}">
+                                                    <TextBlock Text="{x:Bind Headword}" Style="{StaticResource Phase1LabelTextStyle}" FontSize="15" LineHeight="22"
+                                                               TextWrapping="NoWrap" IsTextSelectionEnabled="False" VerticalAlignment="Center" />
+                                                    <TextBlock Text="{x:Bind Reading}" Style="{StaticResource Phase1ReadingTextStyle}" IsTextSelectionEnabled="False" VerticalAlignment="Center"
+                                                               Visibility="{x:Bind local:MainWindow.Shown(Reading)}" />
+                                                    <Border Style="{StaticResource Phase1PosBadgeStyle}" Visibility="{x:Bind local:MainWindow.Shown(PartOfSpeech)}">
+                                                        <TextBlock Text="{x:Bind PartOfSpeech}" Style="{StaticResource Phase1CaptionTextStyle}" FontWeight="SemiBold"
+                                                                   VerticalAlignment="Center" IsTextSelectionEnabled="False" />
+                                                    </Border>
+                                                </StackPanel>
+                                                <TextBlock Text="{x:Bind Summary}" Style="{StaticResource Phase1BodyTextStyle}" FontSize="14" LineHeight="20"
+                                                           Foreground="{ThemeResource Phase1InkMutedBrush}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" IsTextSelectionEnabled="False" />
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="{StaticResource Phase1Space8}" VerticalAlignment="Center"
+                                                        Visibility="{x:Bind IsSelected, Mode=OneWay}">
+                                                <TextBlock Text="Open" Style="{StaticResource Phase1CaptionTextStyle}" Foreground="{ThemeResource Phase1InkFaintBrush}" VerticalAlignment="Center" IsTextSelectionEnabled="False" />
+                                                <ContentControl Style="{StaticResource Phase1KoiKeycapStyle}" Content="↵" />
+                                            </StackPanel>
+                                        </Grid>
+                                    </Grid>
+                                </DataTemplate>
+                            </ListView.ItemTemplate>
+                        </ListView>
+
+                        <StackPanel Orientation="Horizontal" Spacing="{StaticResource Phase1Space8}" Padding="10,12,10,4">
+                            <TextBlock Text="Go deeper" Style="{StaticResource Phase1CaptionTextStyle}" FontWeight="SemiBold" VerticalAlignment="Center" IsTextSelectionEnabled="False" />
+                            <ContentControl Style="{StaticResource Phase1AiBadgeStyle}" Content="AI · online" Visibility="{x:Bind ViewModel.IsAiAvailable}" />
+                        </StackPanel>
+                        <Button x:Name="AskAiRow" Style="{StaticResource Phase1RowButtonStyle}" Click="AskAi_Click" AccessKey="A"
+                                AutomationProperties.Name="Ask AI. Sends the text online.">
+                            <Grid ColumnSpacing="{StaticResource Phase1Space12}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <Border Width="32" Height="32" CornerRadius="10" Background="{ThemeResource Phase1LimeBrush}" VerticalAlignment="Center">
+                                    <Path Style="{StaticResource Phase1StrokeIconStyle}" Stroke="{ThemeResource Phase1OnLimeBrush}" Data="M10 3L11.5 8.5L17 10L11.5 11.5L10 17L8.5 11.5L3 10L8.5 8.5L10 3Z" />
+                                </Border>
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                    <TextBlock Style="{StaticResource Phase1LabelTextStyle}" FontSize="15" LineHeight="22" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" IsTextSelectionEnabled="False">
+                                        <Run Text="Ask AI about “" /><Run Text="{x:Bind ViewModel.InputText, Mode=OneWay}" /><Run Text="”" />
+                                    </TextBlock>
+                                    <TextBlock Text="{x:Bind ViewModel.AiSendNotice}" Style="{StaticResource Phase1BodyTextStyle}" FontSize="14" LineHeight="20"
+                                               Foreground="{ThemeResource Phase1InkMutedBrush}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" IsTextSelectionEnabled="False" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="{StaticResource Phase1Space8}" VerticalAlignment="Center">
+                                    <TextBlock Text="Sends text" Style="{StaticResource Phase1CaptionTextStyle}" Foreground="{ThemeResource Phase1InkFaintBrush}" VerticalAlignment="Center" IsTextSelectionEnabled="False" />
+                                    <ContentControl Style="{StaticResource Phase1LimeKeycapStyle}" Content="Tab" />
+                                </StackPanel>
+                            </Grid>
+                        </Button>
+                    </StackPanel>
+
+                    <!-- Result detail (screens/result-detail): one answer, then tabs. Dictionary facts and AI output never share a card. -->
+                    <ScrollViewer x:Name="DetailPanel" Visibility="Collapsed" MaxHeight="560" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel Padding="24" Spacing="{StaticResource Phase1Space16}">
+                            <Button x:Name="BackButton" Style="{StaticResource Phase1GhostButtonStyle}" Click="Back_Click" Padding="6,2" MinHeight="0"
+                                    AutomationProperties.Name="Back to results">
+                                <StackPanel Orientation="Horizontal" Spacing="{StaticResource Phase1Space8}">
+                                    <ContentControl Style="{StaticResource Phase1KeycapStyle}" Content="←" />
+                                    <TextBlock Text="Back to results" Style="{StaticResource Phase1CaptionTextStyle}" VerticalAlignment="Center" IsTextSelectionEnabled="False" />
+                                </StackPanel>
+                            </Button>
+
+                            <!-- Opened dictionary row. -->
+                            <views:DictionaryCards x:Name="DictionaryDetailCard" SourceDetails="{x:Bind ViewModel.DictionarySourceDetails, Mode=OneWay}"
+                                                   AutomationProperties.Name="Local dictionary definitions and sources" />
+
+                            <!-- AI answer. -->
+                            <StackPanel x:Name="AiDetail" Spacing="{StaticResource Phase1Space16}">
+                                <Grid ColumnSpacing="{StaticResource Phase1Space16}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Spacing="4">
+                                        <ContentControl Style="{StaticResource Phase1AiBadgeStyle}" Content="AI · online" Visibility="{x:Bind ViewModel.IsAiAvailable}" HorizontalAlignment="Left" />
+                                        <TextBlock x:Name="AnswerText" Text="{x:Bind ViewModel.Result.NaturalTranslation, Mode=OneWay}" Style="{StaticResource Phase1HeroTextStyle}"
+                                                   AutomationProperties.Name="{x:Bind ViewModel.TargetLanguageLabel, Mode=OneWay}" />
+                                        <TextBlock x:Name="AiStatusLine" Text="{x:Bind ViewModel.AiStatusText, Mode=OneWay}" Style="{StaticResource Phase1CaptionTextStyle}" AutomationProperties.LiveSetting="Polite" />
+                                    </StackPanel>
+                                    <StackPanel x:Name="AnswerActions" Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Top" Padding="0,4,0,0">
+                                        <Button Style="{StaticResource Phase1IconButtonStyle}" Command="{x:Bind ViewModel.Pronunciation.SpeakCommand}"
+                                                CommandParameter="{x:Bind ViewModel.Pronunciation.SourceText, Mode=OneWay}"
+                                                AutomationProperties.Name="{x:Bind ViewModel.Pronunciation.SourceAutomationName, Mode=OneWay}"
+                                                ToolTipService.ToolTip="{x:Bind ViewModel.Pronunciation.SourceAutomationName, Mode=OneWay}">
+                                            <Path Style="{StaticResource Phase1StrokeIconStyle}" Stroke="{ThemeResource Phase1InkBrush}"
+                                                  Data="M3.5 8H6.5L10.5 4.5V15.5L6.5 12H3.5V8ZM13.5 7.5C14.5 8.6 14.5 11.4 13.5 12.5M16 5C18 7.5 18 12.5 16 15" />
+                                        </Button>
+                                        <Button Style="{StaticResource Phase1IconButtonStyle}" Click="CopyAnswer_Click" AutomationProperties.Name="Copy answer" ToolTipService.ToolTip="Copy answer (Ctrl+C)">
+                                            <BitmapIcon Style="{StaticResource Phase1CopyIconStyle}" />
+                                        </Button>
+                                        <Button Style="{StaticResource Phase1IconButtonStyle}" IsEnabled="False" AutomationProperties.Name="Save phrase"
+                                                AutomationProperties.HelpText="Saving phrases is not available yet." ToolTipService.ToolTip="Saving phrases is not available yet">
+                                            <BitmapIcon Style="{StaticResource Phase1BookmarkIconStyle}" />
+                                        </Button>
+                                    </StackPanel>
+                                </Grid>
+                                <StackPanel Orientation="Horizontal" Spacing="{StaticResource Phase1Space8}"
+                                            Visibility="{x:Bind ViewModel.Pronunciation.IsPlaying, Mode=OneWay}">
+                                    <Button Content="Stop audio" Command="{x:Bind ViewModel.Pronunciation.StopCommand}" Style="{StaticResource Phase1ActionButtonStyle}" />
+                                </StackPanel>
+                                <TextBlock x:Name="PronunciationStatus" Text="{x:Bind ViewModel.Pronunciation.Status, Mode=OneWay}" Style="{StaticResource Phase1CaptionTextStyle}" Visibility="Collapsed" AutomationProperties.LiveSetting="Polite" />
+
+                                <!-- Asking: shimmer, what was sent, Cancel. -->
+                                <Border x:Name="AiLoading" Style="{StaticResource Phase1AiCardStyle}">
+                                    <StackPanel Spacing="12">
+                                        <Grid>
+                                            <TextBlock Text="Asking AI…" Style="{StaticResource Phase1LabelTextStyle}" Foreground="{ThemeResource Phase1InkMutedBrush}" />
+                                            <ContentControl Style="{StaticResource Phase1AiBadgeStyle}" Content="AI · online" Visibility="{x:Bind ViewModel.IsAiAvailable}" HorizontalAlignment="Right" />
+                                        </Grid>
+                                        <Border Style="{StaticResource Phase1ShimmerStyle}" Width="380" />
+                                        <Border Style="{StaticResource Phase1ShimmerStyle}" Width="290" />
+                                        <Border Style="{StaticResource Phase1CardFootStyle}">
+                                            <Grid>
+                                                <TextBlock Style="{StaticResource Phase1CaptionTextStyle}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap">
+                                                    <Run Text="Sent: “" /><Run Text="{x:Bind ViewModel.AiInputSnapshot, Mode=OneWay}" /><Run Text="”" />
+                                                </TextBlock>
+                                                <HyperlinkButton Content="Cancel" Style="{StaticResource Phase1LinkButtonStyle}" HorizontalAlignment="Right" AccessKey="C"
+                                                                 Command="{x:Bind ViewModel.CancelCommand, Mode=OneWay}" />
+                                            </Grid>
+                                        </Border>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Failure or AI unavailable: what happened, what to do, one button. -->
+                                <Border x:Name="AiError" CornerRadius="{StaticResource Phase1RadiusMd}" Padding="16" Background="{ThemeResource Phase1DangerSoftBrush}">
+                                    <Grid ColumnSpacing="{StaticResource Phase1Space12}">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <BitmapIcon Style="{StaticResource Phase1ErrorIconStyle}" Foreground="{ThemeResource Phase1DangerBrush}" VerticalAlignment="Top" />
+                                        <TextBlock x:Name="AiErrorText" Grid.Column="1" Style="{StaticResource Phase1BodyTextStyle}" AutomationProperties.LiveSetting="Assertive" />
+                                        <Button x:Name="AiRetryButton" Grid.Column="2" Content="Try again" Click="AskAiRetry_Click" Style="{StaticResource Phase1ActionButtonStyle}" VerticalAlignment="Top" />
+                                    </Grid>
+                                </Border>
+
+                                <!-- Answer tabs: Words · Explain · Grammar · Other ways (keys 1–4). -->
+                                <StackPanel x:Name="AiTabs" Spacing="{StaticResource Phase1Space16}">
+                                    <Border HorizontalAlignment="Left" Padding="3" CornerRadius="18" Background="{ThemeResource Phase1BarRaisedBrush}"
+                                            BorderBrush="{ThemeResource Phase1LineBrush}" BorderThickness="1">
+                                        <StackPanel Orientation="Horizontal" Spacing="2" AutomationProperties.Name="Answer sections">
+                                            <RadioButton x:Name="WordsTab" GroupName="AnswerTabs" Content="Words" Style="{StaticResource Phase1TabStyle}" IsChecked="True" Checked="AnswerTab_Checked" />
+                                            <RadioButton x:Name="ExplainTab" GroupName="AnswerTabs" Content="Explain" Style="{StaticResource Phase1TabStyle}" Checked="AnswerTab_Checked" />
+                                            <RadioButton x:Name="GrammarTab" GroupName="AnswerTabs" Content="Grammar" Style="{StaticResource Phase1TabStyle}" Checked="AnswerTab_Checked" />
+                                            <RadioButton x:Name="OtherWaysTab" GroupName="AnswerTabs" Content="Other ways" Style="{StaticResource Phase1TabStyle}" Checked="AnswerTab_Checked" />
+                                        </StackPanel>
+                                    </Border>
+
+                                    <StackPanel x:Name="WordsPanel" Spacing="{StaticResource Phase1Space16}">
+                                        <views:DictionaryCards Items="{x:Bind ViewModel.DictionaryCards, Mode=OneWay}" SourceDetails="{x:Bind ViewModel.DictionarySourceDetails, Mode=OneWay}"
+                                                               AutomationProperties.Name="Local dictionary definitions and sources" />
+                                        <Border Style="{StaticResource Phase1AiCardStyle}">
+                                            <StackPanel Spacing="12">
+                                                <Grid>
+                                                    <TextBlock Text="Also in this sentence" Style="{StaticResource Phase1LabelTextStyle}" Foreground="{ThemeResource Phase1InkMutedBrush}" />
+                                                    <ContentControl Style="{StaticResource Phase1AiBadgeStyle}" Content="AI" HorizontalAlignment="Right" />
+                                                </Grid>
+                                                <views:VocabularyCards Items="{x:Bind ViewModel.WordCards, Mode=OneWay}" AutomationProperties.Name="Words from AI" />
+                                                <TextBlock x:Name="NoWordsText" Text="No word notes for this text." Style="{StaticResource Phase1CaptionTextStyle}" />
+                                            </StackPanel>
+                                        </Border>
+                                    </StackPanel>
+
+                                    <Border x:Name="ExplainPanel" Style="{StaticResource Phase1AiCardStyle}">
+                                        <StackPanel Spacing="12">
+                                            <Grid>
+                                                <TextBlock Text="Explain" Style="{StaticResource Phase1LabelTextStyle}" Foreground="{ThemeResource Phase1InkMutedBrush}" />
+                                                <ContentControl Style="{StaticResource Phase1AiBadgeStyle}" Content="AI · online" Visibility="{x:Bind ViewModel.IsAiAvailable}" HorizontalAlignment="Right" />
+                                            </Grid>
+                                            <TextBlock Text="{x:Bind ViewModel.Result.Explanation, Mode=OneWay}" Style="{StaticResource Phase1AnswerTextStyle}" FontSize="17" LineHeight="26"
+                                                       AutomationProperties.Name="Explanation" />
+                                            <TextBlock Text="{x:Bind ViewModel.Result.Context, Mode=OneWay}" Style="{StaticResource Phase1BodyTextStyle}" FontSize="14" LineHeight="20"
+                                                       Foreground="{ThemeResource Phase1InkMutedBrush}" AutomationProperties.Name="Context" />
+                                            <Border Style="{StaticResource Phase1ChipStyle}" HorizontalAlignment="Left">
+                                                <TextBlock Style="{StaticResource Phase1LabelTextStyle}" AutomationProperties.Name="Tone">
+                                                    <Run Text="Tone " /><Run Text="{x:Bind ViewModel.Result.Tone, Mode=OneWay}" FontWeight="Normal" Foreground="{ThemeResource Phase1InkMutedBrush}" />
+                                                </TextBlock>
+                                            </Border>
+                                            <Border Style="{StaticResource Phase1CardFootStyle}">
+                                                <TextBlock Text="{x:Bind ViewModel.AiSourceLabel, Mode=OneWay}" Style="{StaticResource Phase1CaptionTextStyle}" />
+                                            </Border>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border x:Name="GrammarPanel" Style="{StaticResource Phase1AiCardStyle}">
+                                        <StackPanel Spacing="12">
+                                            <Grid>
+                                                <TextBlock Text="Grammar" Style="{StaticResource Phase1LabelTextStyle}" Foreground="{ThemeResource Phase1InkMutedBrush}" />
+                                                <ContentControl Style="{StaticResource Phase1AiBadgeStyle}" Content="AI · online" Visibility="{x:Bind ViewModel.IsAiAvailable}" HorizontalAlignment="Right" />
+                                            </Grid>
+                                            <ItemsControl ItemsSource="{x:Bind ViewModel.Result.Grammar, Mode=OneWay}">
+                                                <ItemsControl.ItemsPanel>
+                                                    <ItemsPanelTemplate><StackPanel Spacing="12" /></ItemsPanelTemplate>
+                                                </ItemsControl.ItemsPanel>
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate x:DataType="models:GrammarPoint">
+                                                        <StackPanel Spacing="2">
+                                                            <TextBlock Text="{x:Bind Pattern}" Style="{StaticResource Phase1LabelTextStyle}" FontSize="15" LineHeight="22" />
+                                                            <TextBlock Text="{x:Bind Explanation}" Style="{StaticResource Phase1BodyTextStyle}" />
+                                                            <TextBlock Text="{x:Bind ExampleSentence}" Style="{StaticResource Phase1CaptionTextStyle}" />
+                                                        </StackPanel>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                            <TextBlock x:Name="NoGrammarText" Text="No grammar notes for this text." Style="{StaticResource Phase1CaptionTextStyle}" />
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border x:Name="OtherWaysPanel" Style="{StaticResource Phase1AiCardStyle}">
+                                        <StackPanel Spacing="12">
+                                            <Grid>
+                                                <TextBlock Text="Other ways to say it" Style="{StaticResource Phase1LabelTextStyle}" Foreground="{ThemeResource Phase1InkMutedBrush}" />
+                                                <ContentControl Style="{StaticResource Phase1AiBadgeStyle}" Content="AI · online" Visibility="{x:Bind ViewModel.IsAiAvailable}" HorizontalAlignment="Right" />
+                                            </Grid>
+                                            <ItemsControl ItemsSource="{x:Bind ViewModel.Result.Alternatives, Mode=OneWay}">
+                                                <ItemsControl.ItemsPanel>
+                                                    <ItemsPanelTemplate><StackPanel Spacing="12" /></ItemsPanelTemplate>
+                                                </ItemsControl.ItemsPanel>
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate x:DataType="models:TranslationAlternative">
+                                                        <StackPanel Spacing="2">
+                                                            <TextBlock Text="{x:Bind Text}" Style="{StaticResource Phase1LabelTextStyle}" FontSize="15" LineHeight="22" />
+                                                            <TextBlock Text="{x:Bind Explanation}" Style="{StaticResource Phase1BodyTextStyle}" FontSize="14" LineHeight="20"
+                                                                       Foreground="{ThemeResource Phase1InkMutedBrush}" />
+                                                        </StackPanel>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                            <TextBlock x:Name="NoOtherWaysText" Text="No other wordings for this text." Style="{StaticResource Phase1CaptionTextStyle}" />
+                                            <Border Style="{StaticResource Phase1CardFootStyle}">
+                                                <TextBlock Text="Near-synonyms can differ in nuance." Style="{StaticResource Phase1CaptionTextStyle}" />
+                                            </Border>
+                                        </StackPanel>
+                                    </Border>
+                                </StackPanel>
+                            </StackPanel>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Grid>
+            </Border>
+
+            <!-- Footer: privacy when empty, key hints while typing; Settings always. -->
+            <Grid Grid.Row="3" Padding="16,10" BorderBrush="{ThemeResource Phase1LineBrush}" BorderThickness="0,1,0,0" ColumnSpacing="{StaticResource Phase1Space16}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel x:Name="PrivacyFooter" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                    <ContentControl Style="{StaticResource Phase1LocalBadgeStyle}" Content="On this device" />
+                    <TextBlock Text="Lookups stay on this device. Only Ask AI sends text online." Style="{StaticResource Phase1CaptionTextStyle}"
+                               Foreground="{ThemeResource Phase1InkFaintBrush}" VerticalAlignment="Center" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" IsTextSelectionEnabled="False" />
+                </StackPanel>
+                <StackPanel x:Name="KeyHints" Orientation="Horizontal" Spacing="{StaticResource Phase1Space16}" VerticalAlignment="Center" Visibility="Collapsed">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <StackPanel Orientation="Horizontal" Spacing="3">
+                            <ContentControl Style="{StaticResource Phase1KeycapStyle}" Content="↑" />
+                            <ContentControl Style="{StaticResource Phase1KeycapStyle}" Content="↓" />
+                        </StackPanel>
+                        <TextBlock Text="Move" Style="{StaticResource Phase1CaptionTextStyle}" Foreground="{ThemeResource Phase1InkFaintBrush}" VerticalAlignment="Center" IsTextSelectionEnabled="False" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <ContentControl Style="{StaticResource Phase1KeycapStyle}" Content="↵" />
+                        <TextBlock Text="Open" Style="{StaticResource Phase1CaptionTextStyle}" Foreground="{ThemeResource Phase1InkFaintBrush}" VerticalAlignment="Center" IsTextSelectionEnabled="False" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <ContentControl Style="{StaticResource Phase1KeycapStyle}" Content="Tab" />
+                        <TextBlock Text="Ask AI" Style="{StaticResource Phase1CaptionTextStyle}" Foreground="{ThemeResource Phase1InkFaintBrush}" VerticalAlignment="Center" IsTextSelectionEnabled="False" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <StackPanel Orientation="Horizontal" Spacing="3">
+                            <ContentControl Style="{StaticResource Phase1KeycapStyle}" Content="Ctrl" />
+                            <ContentControl Style="{StaticResource Phase1KeycapStyle}" Content="C" />
+                        </StackPanel>
+                        <TextBlock Text="Copy" Style="{StaticResource Phase1CaptionTextStyle}" Foreground="{ThemeResource Phase1InkFaintBrush}" VerticalAlignment="Center" IsTextSelectionEnabled="False" />
+                    </StackPanel>
+                </StackPanel>
+                <StackPanel x:Name="DetailHints" Orientation="Horizontal" Spacing="{StaticResource Phase1Space16}" VerticalAlignment="Center" Visibility="Collapsed">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <ContentControl Style="{StaticResource Phase1KeycapStyle}" Content="←" />
+                        <TextBlock Text="Back to results" Style="{StaticResource Phase1CaptionTextStyle}" Foreground="{ThemeResource Phase1InkFaintBrush}" VerticalAlignment="Center" IsTextSelectionEnabled="False" />
+                    </StackPanel>
+                    <StackPanel x:Name="TabHint" Orientation="Horizontal" Spacing="6">
+                        <StackPanel Orientation="Horizontal" Spacing="3">
+                            <ContentControl Style="{StaticResource Phase1KeycapStyle}" Content="1" />
+                            <ContentControl Style="{StaticResource Phase1KeycapStyle}" Content="4" />
+                        </StackPanel>
+                        <TextBlock Text="Switch tab" Style="{StaticResource Phase1CaptionTextStyle}" Foreground="{ThemeResource Phase1InkFaintBrush}" VerticalAlignment="Center" IsTextSelectionEnabled="False" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <StackPanel Orientation="Horizontal" Spacing="3">
+                            <ContentControl Style="{StaticResource Phase1KeycapStyle}" Content="Ctrl" />
+                            <ContentControl Style="{StaticResource Phase1KeycapStyle}" Content="C" />
+                        </StackPanel>
+                        <TextBlock Text="Copy answer" Style="{StaticResource Phase1CaptionTextStyle}" Foreground="{ThemeResource Phase1InkFaintBrush}" VerticalAlignment="Center" IsTextSelectionEnabled="False" />
+                    </StackPanel>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="{StaticResource Phase1Space16}" VerticalAlignment="Center">
+                    <StackPanel x:Name="HideHint" Orientation="Horizontal" Spacing="6">
+                        <ContentControl Style="{StaticResource Phase1KeycapStyle}" Content="Esc" />
+                        <TextBlock Text="Hide" Style="{StaticResource Phase1CaptionTextStyle}" Foreground="{ThemeResource Phase1InkFaintBrush}" VerticalAlignment="Center" IsTextSelectionEnabled="False" />
+                    </StackPanel>
+                    <Button x:Name="SettingsButton" Style="{StaticResource Phase1GhostButtonStyle}" MinHeight="0" Padding="6,2" AccessKey="S" AutomationProperties.Name="Settings">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <Path Style="{StaticResource Phase1StrokeIconStyle}" Stroke="{ThemeResource Phase1InkFaintBrush}" Data="M4 6H11M15 6H16M4 14H5M9 14H16M13 4V8M7 12V16" />
+                            <TextBlock Text="Settings" Style="{StaticResource Phase1CaptionTextStyle}" Foreground="{ThemeResource Phase1InkFaintBrush}" VerticalAlignment="Center" IsTextSelectionEnabled="False" />
+                        </StackPanel>
+                        <Button.Flyout>
+                            <Flyout Placement="TopEdgeAlignedRight">
+                                <StackPanel Width="280" Spacing="{StaticResource Phase1Space12}">
+                                    <Button Content="Dictionaries" Click="Dictionaries_Click" HorizontalAlignment="Stretch" Style="{StaticResource Phase1ActionButtonStyle}"
+                                            AutomationProperties.Name="Manage local dictionaries" />
+                                    <ComboBox x:Name="CaptureDisplayPicker" Header="Screen to capture" HorizontalAlignment="Stretch"
+                                              AutomationProperties.Name="Display to capture">
+                                        <ComboBox.ItemTemplate>
+                                            <DataTemplate x:DataType="capture:CaptureDisplay">
+                                                <TextBlock Text="{x:Bind vm:SelectionOverlayViewModel.FriendlyDisplayName(Source.SourceId)}" />
+                                            </DataTemplate>
+                                        </ComboBox.ItemTemplate>
+                                    </ComboBox>
+                                    <Button x:Name="DesignPreviewButton" Content="Open design preview" HorizontalAlignment="Stretch" AutomationProperties.Name="Open compact design preview (sample data)"
+                                            Visibility="Collapsed" Click="DesignPreview_Click" Style="{StaticResource Phase1ActionButtonStyle}" />
+                                    <ComboBox x:Name="DesignPreviewStatePicker" Visibility="Collapsed" HorizontalAlignment="Stretch"
+                                              AutomationProperties.Name="Design preview state (sample data only)" />
+                                    <ComboBox x:Name="DesignPreviewThemePicker" Visibility="Collapsed" HorizontalAlignment="Stretch"
+                                              AutomationProperties.Name="Design preview theme (this popup only)" />
+                                </StackPanel>
+                            </Flyout>
+                        </Button.Flyout>
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Grid>
+    </Canvas>
 </Window>

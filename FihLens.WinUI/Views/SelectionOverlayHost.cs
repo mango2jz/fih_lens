@@ -17,6 +17,8 @@ namespace FihLens.WinUI.Views;
 /// <summary>Owns both selection windows until their native destruction is acknowledged.</summary>
 public sealed class SelectionOverlayHost : IDisposable
 {
+    // Fits status, display, size and three buttons at the label size.
+    private const double ToolbarWidth = 760;
     private static readonly HashSet<SelectionOverlayHost> LiveHosts = [];
     private readonly SelectionOverlayViewModel _viewModel;
     private readonly Window _owner;
@@ -95,10 +97,15 @@ public sealed class SelectionOverlayHost : IDisposable
             _root = _compositor.CreateContainerVisual();
             _root.Size = new(bounds.Width, bounds.Height);
             _target.Root = _root;
-            for (int i = 0; i < 12; i++)
+            // 0-3 scrim around the selection, 4-7 koi-edge outline outside the frame, 8-11 koi frame,
+            // 12-15 koi-edge rings under the handles, 16-19 koi handles. The edge keeps the frame visible on light pages.
+            var resources = Microsoft.UI.Xaml.Application.Current.Resources;
+            var scrim = ((SolidColorBrush)resources["Phase1ScrimBrush"]).Color;
+            var koi = ((SolidColorBrush)resources["Phase1KoiBrush"]).Color;
+            var edge = ((SolidColorBrush)resources["Phase1KoiEdgeBrush"]).Color;
+            for (int i = 0; i < 20; i++)
             {
-                var accent = ((SolidColorBrush)Microsoft.UI.Xaml.Application.Current.Resources["Phase1AccentBrush"]).Color;
-                var brush = _compositor.CreateColorBrush(i < 4 ? Color.FromArgb(140, 0, 0, 0) : accent);
+                var brush = _compositor.CreateColorBrush(i < 4 ? scrim : i is (>= 4 and < 8) or (>= 12 and < 16) ? edge : koi);
                 _brushes.Add(brush);
                 var visual = _compositor.CreateSpriteVisual();
                 _visuals.Add(visual);
@@ -153,14 +160,22 @@ public sealed class SelectionOverlayHost : IDisposable
         SetVisual(1, 0, y, x, h);
         SetVisual(2, x + w, y, bounds.Width - x - w, h);
         SetVisual(3, 0, y + h, bounds.Width, rect is null ? 0 : bounds.Height - y - h);
-        float border = 2 * _dpi / 96f, handle = 6 * _dpi / 96f;
-        SetVisual(4, x, y, w, Math.Min(border, h));
-        SetVisual(5, x, y + h - Math.Min(border, h), w, Math.Min(border, h));
-        SetVisual(6, x, y, Math.Min(border, w), h);
-        SetVisual(7, x + w - Math.Min(border, w), y, Math.Min(border, w), h);
+        float border = 2 * _dpi / 96f, outline = 1.5f * _dpi / 96f, handle = 10 * _dpi / 96f, ringSize = handle + 2 * outline;
+        float shown = rect is null ? 0 : 1;
+        SetVisual(4, x - outline, y - outline, shown * (w + 2 * outline), shown * outline);
+        SetVisual(5, x - outline, y + h, shown * (w + 2 * outline), shown * outline);
+        SetVisual(6, x - outline, y, shown * outline, h);
+        SetVisual(7, x + w, y, shown * outline, h);
+        SetVisual(8, x, y, w, Math.Min(border, h));
+        SetVisual(9, x, y + h - Math.Min(border, h), w, Math.Min(border, h));
+        SetVisual(10, x, y, Math.Min(border, w), h);
+        SetVisual(11, x + w - Math.Min(border, w), y, Math.Min(border, w), h);
         for (int i = 0; i < 4; i++)
-            SetVisual(8 + i, x + (i % 2 == 0 ? 0 : w) - handle / 2, y + (i < 2 ? 0 : h) - handle / 2,
-                rect is null ? 0 : handle, rect is null ? 0 : handle);
+        {
+            float cx = x + (i % 2 == 0 ? 0 : w), cy = y + (i < 2 ? 0 : h);
+            SetVisual(12 + i, cx - ringSize / 2, cy - ringSize / 2, shown * ringSize, shown * ringSize);
+            SetVisual(16 + i, cx - handle / 2, cy - handle / 2, shown * handle, shown * handle);
+        }
         PlaceToolbar();
     }
 
@@ -180,11 +195,11 @@ public sealed class SelectionOverlayHost : IDisposable
         if (Native.MonitorFromWindow(_toolbarHwnd, 0) != Native.MonitorFromWindow(_hwnd, 0))
             appWindow.Move(new PointInt32(work.Left, work.Top));
         var placement = PopupPlacement.Calculate(new(work.Left, work.Top, work.Right - work.Left, work.Bottom - work.Top),
-            work.Left, work.Top, 584, 46, _dpi / 96d,
+            work.Left, work.Top, ToolbarWidth, 42, _dpi / 96d,
             appWindow.Size.Width - appWindow.ClientSize.Width, appWindow.Size.Height - appWindow.ClientSize.Height);
         if (appWindow.ClientSize.Width != placement.ClientWidth || appWindow.ClientSize.Height != placement.ClientHeight)
             appWindow.ResizeClient(new SizeInt32(placement.ClientWidth, placement.ClientHeight));
-        // Placement uses measured outer geometry; the 46-DIP reference describes the client content.
+        // Placement uses measured outer geometry; the 42-DIP height describes the client content.
         int width = appWindow.Size.Width, height = appWindow.Size.Height;
         if (width <= 0 || height <= 0 || width > work.Right - work.Left || height > work.Bottom - work.Top)
             throw new InvalidOperationException("Toolbar outer bounds do not fit the display work area.");
@@ -201,6 +216,8 @@ public sealed class SelectionOverlayHost : IDisposable
         x = Math.Clamp(x, work.Left, work.Right - width);
         y = Math.Clamp(y, work.Top, work.Bottom - height);
         if (appWindow.Position.X != x || appWindow.Position.Y != y) appWindow.Move(new PointInt32(x, y));
+        // A mouse drag activates the overlay and lifts it over the toolbar; raise the toolbar again without taking focus.
+        Native.SetWindowPos(_toolbarHwnd, 0, 0, 0, 0, 0, 0x0001 | 0x0002 | 0x0010);
     }
 
     private void Confirm()
@@ -390,6 +407,7 @@ public sealed class SelectionOverlayHost : IDisposable
         [DllImport("user32.dll")] internal static extern nint LoadCursorW(nint instance, int cursor);
         [DllImport("user32.dll", SetLastError = true)] internal static extern nint SetWindowLongPtrW(nint hwnd, int index, nint value);
         [DllImport("user32.dll")] internal static extern nint MonitorFromWindow(nint hwnd, uint flags);
+        [DllImport("user32.dll")] internal static extern bool SetWindowPos(nint hwnd, nint after, int x, int y, int w, int h, uint flags);
         [DllImport("user32.dll", SetLastError = true)] internal static extern bool GetMonitorInfoW(nint monitor, ref MonitorInfo info);
         [DllImport("comctl32.dll", SetLastError = true)] internal static extern bool SetWindowSubclass(nint hwnd, SubclassProc callback, nuint id, nuint data);
         [DllImport("comctl32.dll")] internal static extern nint DefSubclassProc(nint hwnd, uint message, nuint wParam, nint lParam);

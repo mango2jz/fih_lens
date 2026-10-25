@@ -115,6 +115,42 @@ public sealed class MainWindowViewModelTests
     }
 
     [Fact]
+    public async Task AdoptResultShowsAnotherSessionsAnswerAndLanguages()
+    {
+        var provider = new ControlledProvider();
+        var capture = new MainWindowViewModel(new TranslationService(provider), "Gemini")
+        {
+            SourceLanguage = Language.Japanese, TargetLanguage = Language.English, InputText = "彼は走る"
+        };
+        var operation = capture.AskAiCommand.ExecuteAsync(null);
+        await provider.Started.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        var result = Result("彼は走る", Language.Japanese, Language.English);
+        provider.Completion.SetResult(result);
+        await operation.WaitAsync(TimeSpan.FromSeconds(2));
+        var launcher = new MainWindowViewModel(new TranslationService(new ControlledProvider()), "Gemini");
+
+        launcher.AdoptResult(capture);
+
+        Assert.Equal(Language.Japanese, launcher.SourceLanguage);
+        Assert.Equal(Language.English, launcher.TargetLanguage);
+        Assert.Equal("彼は走る", launcher.InputText);
+        Assert.Same(result, launcher.Result);
+        Assert.Equal("彼は走る", launcher.AiInputSnapshot);
+    }
+
+    [Fact]
+    public void AdoptResultWithoutAnswerTakesOnlyTheText()
+    {
+        var capture = new MainWindowViewModel { InputText = "time" };
+        var launcher = new MainWindowViewModel();
+
+        launcher.AdoptResult(capture);
+
+        Assert.Equal("time", launcher.InputText);
+        Assert.Null(launcher.Result);
+    }
+
+    [Fact]
     public async Task CancelSuppressesLateSuccessAndRemainsBusyUntilProviderCompletes()
     {
         var provider = new ControlledProvider();
@@ -536,6 +572,7 @@ public sealed class MainWindowViewModelTests
     [InlineData("unknown")]
     [InlineData("gemini")]
     [InlineData("deepseek")]
+    [InlineData("openrouter-nemotron")]
     public async Task UnavailableAiConfigurationLeavesDictionaryUsable(string? mode)
     {
         var startup = FihLens.WinUI.TranslationStartup.Create(name =>
