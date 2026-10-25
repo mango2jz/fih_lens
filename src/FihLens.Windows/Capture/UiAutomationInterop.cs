@@ -322,7 +322,7 @@ internal static class UiAutomationInterop
         [PreserveSig] int RangeFromPoint(nint point, out nint range); [PreserveSig] int RangeFromChild(IUIAutomationElement child, out nint range);
         [PreserveSig] int GetSelection(out IUIAutomationTextRangeArray ranges);
     }
-    [ComImport, Guid("14314595-b4bc-4055-95f2-58f2e42c9855"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    [ComImport, Guid("ce4ae76a-e717-4c98-81ea-47371d028eb6"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
     private interface IUIAutomationTextRangeArray
     {
         [PreserveSig] int get_Length(out int length);

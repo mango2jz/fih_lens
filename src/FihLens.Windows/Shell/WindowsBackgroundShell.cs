@@ -28,7 +28,8 @@ public sealed class WindowsBackgroundShell
     private const uint TpmReturnCommand = 0x0100;
     private const uint ImageIcon = 1;
     private const uint LrLoadFromFile = 0x0010;
-    private const uint LrDefaultSize = 0x0040;
+    private const int SmCxSmIcon = 49;
+    private const int SmCySmIcon = 50;
     private const uint MenuOpen = 1;
     private const uint MenuCapture = 2;
     private const uint MenuExit = 3;
@@ -149,7 +150,8 @@ public sealed class WindowsBackgroundShell
 
         if (_icon == 0)
         {
-            _icon = LoadImageW(0, _iconPath, ImageIcon, 0, 0, LrLoadFromFile | LrDefaultSize);
+            // Small-icon size picks the .ico's 16–24 px small-mark frame instead of shrinking the 32 px one.
+            _icon = LoadImageW(0, _iconPath, ImageIcon, GetSystemMetrics(SmCxSmIcon), GetSystemMetrics(SmCySmIcon), LrLoadFromFile);
             if (_icon == 0)
             {
                 TrayErrorCode = Marshal.GetLastWin32Error();
@@ -467,6 +469,7 @@ public sealed class WindowsBackgroundShell
     [DllImport("user32.dll", SetLastError = true)] private static extern bool UnregisterHotKey(nint window, int id);
     [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)] private static extern uint RegisterWindowMessageW(string message);
     [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)] private static extern nint LoadImageW(nint instance, string name, uint type, int width, int height, uint loadFlags);
+    [DllImport("user32.dll")] private static extern int GetSystemMetrics(int index);
     [DllImport("user32.dll", SetLastError = true)] private static extern bool DestroyIcon(nint icon);
     [DllImport("user32.dll", SetLastError = true)] private static extern bool SetForegroundWindow(nint window);
     [DllImport("user32.dll", SetLastError = true)] private static extern bool PostMessageW(nint window, uint message, nuint wParam, nint lParam);
