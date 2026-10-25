@@ -51,9 +51,11 @@ public sealed class TranslationStartupTests
     }
 
     [Theory]
-    [InlineData("gemini", "GEMINI_API_KEY", "Gemini")]
-    [InlineData("deepseek", "DEEPSEEK_API_KEY", "DeepSeek")]
-    public void LiveReadsOnlySelectedCredentialAndConfiguresClient(string mode, string keyName, string label)
+    [InlineData("gemini", "GEMINI_API_KEY", "Gemini", typeof(GeminiTranslationProvider), 30)]
+    [InlineData("deepseek", "DEEPSEEK_API_KEY", "DeepSeek", typeof(DeepSeekTranslationProvider), 30)]
+    [InlineData("openrouter-nemotron", "OPENROUTER_API_KEY", "OpenRouter Nemotron (free, may log text)", typeof(OpenRouterTranslationProvider), 60)]
+    public void LiveReadsOnlySelectedCredentialAndConfiguresClient(string mode, string keyName, string label,
+        Type expectedProvider, int expectedTimeoutSeconds)
     {
         var reads = new List<string>();
         var startup = TranslationStartup.Create(name =>
@@ -63,9 +65,9 @@ public sealed class TranslationStartupTests
         });
         using var client = startup.Client;
         Assert.Equal(label, startup.Label);
-        Assert.Equal(mode == "gemini" ? typeof(GeminiTranslationProvider) : typeof(DeepSeekTranslationProvider), startup.Provider!.GetType());
+        Assert.Equal(expectedProvider, startup.Provider!.GetType());
         Assert.NotNull(client);
-        Assert.Equal(TimeSpan.FromSeconds(30), client.Timeout);
+        Assert.Equal(TimeSpan.FromSeconds(expectedTimeoutSeconds), client.Timeout);
         Assert.Equal(1_048_576, client.MaxResponseContentBufferSize);
         Assert.Equal(new[] { "FIHLENS_PROVIDER_MODE", keyName }, reads);
     }
@@ -73,6 +75,10 @@ public sealed class TranslationStartupTests
     [Theory]
     [InlineData("gemini", null, "GEMINI_API_KEY")]
     [InlineData("deepseek", "  ", "DEEPSEEK_API_KEY")]
+    [InlineData("openrouter-nemotron", null, "OPENROUTER_API_KEY")]
+    [InlineData("openrouter-nemotron", "  ", "OPENROUTER_API_KEY")]
+    [InlineData("openrouter-gemma", "test-key", "FIHLENS_PROVIDER_MODE")]
+    [InlineData("openrouter", null, "FIHLENS_PROVIDER_MODE")]
     [InlineData("secret-invalid-mode", null, "FIHLENS_PROVIDER_MODE")]
     [InlineData("", null, "FIHLENS_PROVIDER_MODE")]
     public void InvalidConfigurationDisablesOnlyAiWithoutFallbackOrReflectingValues(string mode, string? key, string expectedSetting)
@@ -83,5 +89,10 @@ public sealed class TranslationStartupTests
         var error = startup.UnavailableReason!;
         Assert.Contains(expectedSetting, error);
         Assert.DoesNotContain("secret-invalid-mode", error);
+        if (expectedSetting == "FIHLENS_PROVIDER_MODE")
+        {
+            foreach (var listed in new[] { "gemini", "deepseek", "openrouter-nemotron" })
+                Assert.Contains(listed, error);
+        }
     }
 }
