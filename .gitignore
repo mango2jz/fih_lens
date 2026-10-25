@@ -35,6 +35,10 @@ Desktop.ini
 .omx/
 .omx-state-locks
 
-.codex/
+.omc/
 
-docs/handoffs
+.codex/
+.claude/
+
+docs/
+.ua/
